@@ -42,19 +42,17 @@ $(AUTO_ISO): $(ISO) $(PRESEED)
 	@echo creating unattended iso $(AUTO_ISO)
 	@rm -rf "$(ISO_WORKDIR)"
 	@mkdir -p "$(ISO_WORKDIR)"
-	@xorriso -osirrox on -indev "$(ISO)" -extract /boot/grub/grub.cfg "$(ISO_WORKDIR)/grub.cfg.orig" >/dev/null
 	@printf '%s\n' \
 		'set default=0' \
-		'set timeout=3' \
+		'set timeout_style=hidden' \
+		'set timeout=0' \
 		'' \
 		'menuentry '\''Unattended install (Btrfs snapshots)'\'' {' \
-		'    set background_color=black' \
 		'    linux /$(GRUB_INSTALL_DIR)/vmlinuz auto=true priority=critical preseed/file=/cdrom/preseed.cfg DEBIAN_FRONTEND=text console=tty0 console=$(SERIAL_CONSOLE),115200n8 ---' \
 		'    initrd /$(GRUB_INSTALL_DIR)/initrd.gz' \
 		'}' \
 		'' \
 		> "$(ISO_WORKDIR)/grub.cfg.auto"
-	@cat "$(ISO_WORKDIR)/grub.cfg.orig" >> "$(ISO_WORKDIR)/grub.cfg.auto"
 	@rm -f "$(AUTO_ISO)"
 	@xorriso -indev "$(ISO)" -outdev "$(AUTO_ISO)" \
 		-boot_image any replay \
@@ -70,6 +68,9 @@ _verify-iso: $(AUTO_ISO)
 	@rg -q "in-target sh -euxc" "$(ISO_WORKDIR)/verify-preseed.cfg"
 	@rg -q "snapper --no-dbus -c root create-config /;" "$(ISO_WORKDIR)/verify-preseed.cfg"
 	@rg -q "list-configs \\| grep -Eq" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@rg -q "^set timeout_style=hidden$$" "$(ISO_WORKDIR)/verify-grub.cfg"
+	@rg -q "^set timeout=0$$" "$(ISO_WORKDIR)/verify-grub.cfg"
+	@test "$$(rg -c "^menuentry " "$(ISO_WORKDIR)/verify-grub.cfg")" -eq 1
 	@rg -q "preseed/file=/cdrom/preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg"
 	@echo "ISO verification passed: unattended boot + strict snapper late_command present."
 

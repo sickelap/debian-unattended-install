@@ -2,7 +2,11 @@
 
 This project builds an unattended Debian installer ISO and installs Debian in QEMU with UEFI boot.
 
-It is tuned for `arm64` netinst media and sets up:
+Supported guest architectures:
+- `amd64` (default on Linux)
+- `arm64` (default on macOS, or use `ARCH=arm64`)
+
+The unattended install config sets up:
 - GPT partitioning with an EFI system partition
 - Btrfs root filesystem
 - Snapper configuration with timeline/cleanup timers
@@ -13,54 +17,67 @@ It is tuned for `arm64` netinst media and sets up:
 
 ## Prerequisites
 Install these tools:
-- `qemu-system-aarch64`
+- QEMU (`qemu-system-x86_64` for `amd64`, `qemu-system-aarch64` for `arm64`)
 - `qemu-img`
 - `xorriso`
 - `ripgrep` (`rg`)
 
-You also need AArch64 UEFI firmware files (EDK2). The `Makefile` auto-detects common paths on macOS/Homebrew and Linux. If detection fails, set:
-- `EFI_CODE=/path/to/edk2-aarch64-code.fd`
-- `EFI_VARS_TEMPLATE=/path/to/edk2-aarch64-vars.fd`
+You also need UEFI firmware files:
+- `amd64`: OVMF (`OVMF_CODE.fd`, `OVMF_VARS.fd`)
+- `arm64`: AAVMF/EDK2 (`edk2-aarch64-code.fd`, `edk2-aarch64-vars.fd`)
 
-## Quick Start
-1. Put a Debian ARM64 netinst ISO in the repo root (default expected name is `debian-13.3.0-arm64-netinst.iso`).
+The `Makefile` auto-detects common firmware paths on macOS/Homebrew and Linux. If detection fails, set:
+- `EFI_CODE=/path/to/...`
+- `EFI_VARS_TEMPLATE=/path/to/...`
+
+## Quick Start (Linux amd64)
+1. Put Debian netinst ISO in repo root: `debian-13.3.0-amd64-netinst.iso`.
 2. Build disk image and run unattended install (headless):
 
 ```bash
 make build
 ```
 
-3. Boot the installed VM with GUI input devices:
+3. Boot the installed VM:
 
 ```bash
 make start
 ```
 
+## Run arm64 Instead
+
+```bash
+make build ARCH=arm64 ISO=debian-13.3.0-arm64-netinst.iso
+make start ARCH=arm64
+```
+
 ## Common Targets
-- `make iso`: create unattended installer ISO (`debian-auto.iso`)
+- `make iso`: create unattended installer ISO (`debian-auto-<arch>.iso`)
 - `make verify-iso`: verify preseed + GRUB unattended boot entry were embedded
-- `make image`: create/recreate VM disk image (`os.qcow2`)
+- `make image`: create/recreate VM disk image (`os-<arch>.qcow2`)
 - `make install`: unattended install in GUI window
 - `make install-interactive`: same as install, plus USB keyboard/tablet devices
 - `make install-headless`: unattended install over serial console (`-serial mon:stdio`)
 - `make start`: boot installed OS from disk
-- `make reset-efi-vars`: reset UEFI NVRAM vars file
+- `make reset-efi-vars`: reset UEFI NVRAM vars file (`efi-vars-<arch>.fd`)
 
 ## Important Variables
 Override at runtime as needed:
 
 ```bash
-make build ISO=debian-13.3.0-arm64-netinst.iso DISK=myvm.qcow2 DISK_SIZE=40G
+make build ARCH=amd64 ISO=debian-13.3.0-amd64-netinst.iso DISK=myvm.qcow2 DISK_SIZE=40G
 ```
 
 Main variables:
-- `ISO` (default `debian-13.3.0-arm64-netinst.iso`)
-- `AUTO_ISO` (default `debian-auto.iso`)
-- `DISK` (default `os.qcow2`)
+- `ARCH` (`amd64` or `arm64`)
+- `ISO` (default depends on `ARCH`)
+- `AUTO_ISO` (default `debian-auto-$(ARCH).iso`)
+- `DISK` (default `os-$(ARCH).qcow2`)
+- `EFI_VARS` (default `efi-vars-$(ARCH).fd`)
 - `DISK_SIZE` (default `20G`)
 - `RAM_MB` (default `2048`)
 - `CPUS` (default `4`)
-- `ACCEL` (`hvf` on macOS, `kvm`/`tcg` on Linux depending on host)
+- `ACCEL` (`kvm`/`tcg` on Linux, `hvf` for macOS `arm64`, `tcg` otherwise)
 
 ## What the Unattended Install Does
 From `preseed.cfg`:

@@ -1,11 +1,67 @@
-QEMU ?= qemu-system-aarch64
 QEMU_IMG ?= qemu-img
-DISK ?= os.qcow2
 DISK_SIZE ?= 20G
 HOST_OS := $(shell uname -s)
-HOST_ARCH := $(shell uname -m)
+HOST_ARCH_RAW := $(shell uname -m)
+HOST_ARCH := $(HOST_ARCH_RAW)
+ifeq ($(HOST_ARCH_RAW),x86_64)
+HOST_ARCH := amd64
+endif
+ifeq ($(HOST_ARCH_RAW),aarch64)
+HOST_ARCH := arm64
+endif
+ifeq ($(HOST_ARCH_RAW),arm64)
+HOST_ARCH := arm64
+endif
 
-# EFI firmware paths across macOS (Homebrew) and Linux distributions.
+ifeq ($(HOST_OS),Darwin)
+ARCH ?= arm64
+else
+ARCH ?= amd64
+endif
+
+SUPPORTED_ARCHES := amd64 arm64
+ifeq ($(filter $(ARCH),$(SUPPORTED_ARCHES)),)
+$(error Unsupported ARCH '$(ARCH)'. Use ARCH=amd64 or ARCH=arm64)
+endif
+
+ifeq ($(ARCH),amd64)
+QEMU ?= qemu-system-x86_64
+MACHINE_TYPE ?= q35
+GRUB_INSTALL_DIR ?= install.amd
+SERIAL_CONSOLE ?= ttyS0
+ISO ?= debian-13.3.0-amd64-netinst.iso
+VIDEO_ARGS ?=
+EFI_CODE_HINT ?= OVMF_CODE.fd
+EFI_VARS_HINT ?= OVMF_VARS.fd
+EFI_CODE ?= $(firstword $(wildcard \
+	/opt/homebrew/share/qemu/edk2-x86_64-code.fd \
+	/usr/local/share/qemu/edk2-x86_64-code.fd \
+	/opt/homebrew/Cellar/qemu/*/share/qemu/edk2-x86_64-code.fd \
+	/usr/share/OVMF/OVMF_CODE_4M.fd \
+	/usr/share/OVMF/OVMF_CODE.fd \
+	/usr/share/edk2/ovmf/OVMF_CODE.fd \
+	/usr/share/edk2/x64/OVMF_CODE.fd \
+	/usr/share/qemu/OVMF_CODE.fd \
+))
+EFI_VARS_TEMPLATE ?= $(firstword $(wildcard \
+	/opt/homebrew/share/qemu/edk2-x86_64-vars.fd \
+	/usr/local/share/qemu/edk2-x86_64-vars.fd \
+	/opt/homebrew/Cellar/qemu/*/share/qemu/edk2-x86_64-vars.fd \
+	/usr/share/OVMF/OVMF_VARS_4M.fd \
+	/usr/share/OVMF/OVMF_VARS.fd \
+	/usr/share/edk2/ovmf/OVMF_VARS.fd \
+	/usr/share/edk2/x64/OVMF_VARS.fd \
+	/usr/share/qemu/OVMF_VARS.fd \
+))
+else
+QEMU ?= qemu-system-aarch64
+MACHINE_TYPE ?= virt
+GRUB_INSTALL_DIR ?= install.a64
+SERIAL_CONSOLE ?= ttyAMA0
+ISO ?= debian-13.3.0-arm64-netinst.iso
+VIDEO_ARGS ?= -device ramfb
+EFI_CODE_HINT ?= edk2-aarch64-code.fd
+EFI_VARS_HINT ?= edk2-aarch64-vars.fd
 EFI_CODE ?= $(firstword $(wildcard \
 	/opt/homebrew/share/qemu/edk2-aarch64-code.fd \
 	/usr/local/share/qemu/edk2-aarch64-code.fd \
@@ -27,31 +83,35 @@ EFI_VARS_TEMPLATE ?= $(firstword $(wildcard \
 	/usr/share/AAVMF/AAVMF_VARS.fd \
 	/usr/share/edk2/aarch64/vars-template-pflash.raw \
 ))
-EFI_VARS ?= efi-vars.fd
+endif
 
-ISO ?= debian-13.3.0-arm64-netinst.iso
-AUTO_ISO ?= debian-auto.iso
+DISK ?= os-$(ARCH).qcow2
+EFI_VARS ?= efi-vars-$(ARCH).fd
+AUTO_ISO ?= debian-auto-$(ARCH).iso
 PRESEED ?= preseed.cfg
-ISO_WORKDIR ?= .build/autoiso
+ISO_WORKDIR ?= .build/autoiso-$(ARCH)
 # Default installer media is unattended ISO.
 CDROM ?= $(AUTO_ISO)
 
 RAM_MB ?= 2048
 CPUS ?= 4
 MONITOR_ARGS ?= -monitor none
-VIDEO_ARGS ?= -device ramfb
 INPUT_ARGS ?=
 INTERACTIVE_INPUT_ARGS ?= -device qemu-xhci -device usb-kbd -device usb-tablet
 NETWORK_ARGS ?= -netdev user,id=net0 -device virtio-net,netdev=net0
 
 ifeq ($(HOST_OS),Darwin)
+ifeq ($(ARCH),arm64)
 ACCEL ?= hvf
+else
+ACCEL ?= tcg
+endif
 DISPLAY_ARGS ?= -display cocoa
 else
 ACCEL ?= tcg
 DISPLAY_ARGS ?= -display gtk
-ifneq ($(filter aarch64 arm64,$(HOST_ARCH)),)
 ifneq ($(wildcard /dev/kvm),)
+ifeq ($(HOST_ARCH),$(ARCH))
 ACCEL := kvm
 endif
 endif
@@ -65,7 +125,7 @@ endif
 
 EFI_ARGS = -drive if=pflash,format=raw,readonly=on,file="$(EFI_CODE)" \
 	   -drive if=pflash,format=raw,file="$(EFI_VARS)"
-QEMU_COMMON_ARGS = -machine virt,accel=$(ACCEL) \
+QEMU_COMMON_ARGS = -machine $(MACHINE_TYPE),accel=$(ACCEL) \
 		   -cpu $(CPU_MODEL) \
 		   -m $(RAM_MB) \
 		   -smp $(CPUS) \
@@ -81,8 +141,8 @@ all:
 build: image install-headless
 
 check:
-	@test -n "$(EFI_CODE)" && test -f "$(EFI_CODE)" || (echo "EFI code image not found. Set EFI_CODE=/path/to/edk2-aarch64-code.fd"; exit 1)
-	@test -n "$(EFI_VARS_TEMPLATE)" && test -f "$(EFI_VARS_TEMPLATE)" || (echo "EFI vars template not found. Set EFI_VARS_TEMPLATE=/path/to/edk2-*-vars.fd"; exit 1)
+	@test -n "$(EFI_CODE)" && test -f "$(EFI_CODE)" || (echo "EFI code image not found for ARCH=$(ARCH). Set EFI_CODE=/path/to/$(EFI_CODE_HINT)"; exit 1)
+	@test -n "$(EFI_VARS_TEMPLATE)" && test -f "$(EFI_VARS_TEMPLATE)" || (echo "EFI vars template not found for ARCH=$(ARCH). Set EFI_VARS_TEMPLATE=/path/to/$(EFI_VARS_HINT)"; exit 1)
 	@test -f "$(CDROM)" || (echo "CDROM/ISO not found: $(CDROM)"; exit 1)
 
 image:
@@ -103,8 +163,8 @@ $(AUTO_ISO): $(ISO) $(PRESEED)
 		'' \
 		'menuentry '\''Unattended install (Btrfs snapshots)'\'' {' \
 		'    set background_color=black' \
-		'    linux /install.a64/vmlinuz auto=true priority=critical preseed/file=/cdrom/preseed.cfg DEBIAN_FRONTEND=text console=tty0 console=ttyAMA0,115200n8 ---' \
-		'    initrd /install.a64/initrd.gz' \
+		'    linux /$(GRUB_INSTALL_DIR)/vmlinuz auto=true priority=critical preseed/file=/cdrom/preseed.cfg DEBIAN_FRONTEND=text console=tty0 console=$(SERIAL_CONSOLE),115200n8 ---' \
+		'    initrd /$(GRUB_INSTALL_DIR)/initrd.gz' \
 		'}' \
 		'' \
 		> "$(ISO_WORKDIR)/grub.cfg.auto"

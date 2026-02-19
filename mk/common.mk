@@ -32,3 +32,13 @@ MONITOR_ARGS ?= -monitor none
 INPUT_ARGS ?=
 INTERACTIVE_INPUT_ARGS ?= -device qemu-xhci -device usb-kbd -device usb-tablet
 NETWORK_ARGS ?= -netdev user,id=net0 -device virtio-net,netdev=net0
+
+SSH_PUBLIC_KEY_FILE ?= $(firstword $(wildcard \
+	$(HOME)/.ssh/id_ed25519.pub \
+	$(HOME)/.ssh/id_ecdsa.pub \
+	$(HOME)/.ssh/id_rsa.pub \
+))
+SSH_PUBLIC_KEY ?=
+SSH_PUBLIC_KEY_EFFECTIVE := $(strip $(if $(SSH_PUBLIC_KEY),$(SSH_PUBLIC_KEY),$(if $(SSH_PUBLIC_KEY_FILE),$(file <$(SSH_PUBLIC_KEY_FILE)),)))
+AUTHORIZED_KEY_ISO_PATH ?= /authorized_key.pub
+AUTHORIZED_KEY_HOST_FILE ?= $(ISO_WORKDIR)/authorized_key.pub

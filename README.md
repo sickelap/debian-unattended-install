@@ -87,6 +87,8 @@ Main variables:
 - `TEST_LOG` (default `.build/test/install-$(ARCH).log`)
 - `TEST_TAIL_LINES` (default `80`, number of log lines shown initially when following test log)
 - `TEST_SUCCESS_REGEX` (default reboot completion pattern checked by `make test`)
+- `SSH_PUBLIC_KEY_FILE` (default: first existing key from `~/.ssh/id_ed25519.pub`, `id_ecdsa.pub`, `id_rsa.pub`)
+- `SSH_PUBLIC_KEY` (optional inline override for the public key to inject)
 
 ## What the Unattended Install Does
 From `preseed.cfg`:
@@ -101,4 +103,5 @@ From `preseed.cfg`:
 - `make install`/`make test` reset EFI vars each run for deterministic installer boot behavior.
 - `make test` shows a live `tail -f` style view while writing the full installer log to `TEST_LOG`.
 - `make test` uses Linux `timeout` in CI; on macOS it runs without timeout to support local MacBook verification.
+- The unattended ISO embeds `/authorized_key.pub` and `preseed.cfg` installs it as `/home/user/.ssh/authorized_keys` if non-empty.
 - Default networking is QEMU user networking (`virtio-net`).

@@ -42,6 +42,12 @@ $(AUTO_ISO): $(ISO) $(PRESEED)
 	@echo creating unattended iso $(AUTO_ISO)
 	@rm -rf "$(ISO_WORKDIR)"
 	@mkdir -p "$(ISO_WORKDIR)"
+	@if [ -n "$(SSH_PUBLIC_KEY_EFFECTIVE)" ]; then \
+		printf '%s\n' "$(SSH_PUBLIC_KEY_EFFECTIVE)" > "$(AUTHORIZED_KEY_HOST_FILE)"; \
+	else \
+		: > "$(AUTHORIZED_KEY_HOST_FILE)"; \
+		echo "WARNING: no SSH public key found (checked SSH_PUBLIC_KEY and $(SSH_PUBLIC_KEY_FILE)); proceeding without key-based SSH access."; \
+	fi
 	@printf '%s\n' \
 		'set default=0' \
 		'set timeout_style=hidden' \
@@ -57,14 +63,16 @@ $(AUTO_ISO): $(ISO) $(PRESEED)
 	@xorriso -indev "$(ISO)" -outdev "$(AUTO_ISO)" \
 		-boot_image any replay \
 		-map "$(PRESEED)" /preseed.cfg \
+		-map "$(AUTHORIZED_KEY_HOST_FILE)" "$(AUTHORIZED_KEY_ISO_PATH)" \
 		-map "$(ISO_WORKDIR)/grub.cfg.auto" /boot/grub/grub.cfg >/dev/null
 	@echo created $(AUTO_ISO)
 
 _verify-iso: $(AUTO_ISO)
 	@mkdir -p "$(ISO_WORKDIR)"
-	@rm -f "$(ISO_WORKDIR)/verify-preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg"
+	@rm -f "$(ISO_WORKDIR)/verify-preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg" "$(ISO_WORKDIR)/verify-authorized_key.pub"
 	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract /preseed.cfg "$(ISO_WORKDIR)/verify-preseed.cfg" >/dev/null
 	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract /boot/grub/grub.cfg "$(ISO_WORKDIR)/verify-grub.cfg" >/dev/null
+	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract "$(AUTHORIZED_KEY_ISO_PATH)" "$(ISO_WORKDIR)/verify-authorized_key.pub" >/dev/null
 	@rg -q "in-target sh -euxc" "$(ISO_WORKDIR)/verify-preseed.cfg"
 	@rg -q "snapper --no-dbus -c root create-config /;" "$(ISO_WORKDIR)/verify-preseed.cfg"
 	@rg -q "list-configs \\| grep -Eq" "$(ISO_WORKDIR)/verify-preseed.cfg"
@@ -72,6 +80,7 @@ _verify-iso: $(AUTO_ISO)
 	@rg -q "^set timeout=0$$" "$(ISO_WORKDIR)/verify-grub.cfg"
 	@test "$$(rg -c "^menuentry " "$(ISO_WORKDIR)/verify-grub.cfg")" -eq 1
 	@rg -q "preseed/file=/cdrom/preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg"
+	@test -f "$(ISO_WORKDIR)/verify-authorized_key.pub"
 	@echo "ISO verification passed: unattended boot + strict snapper late_command present."
 
 _efi-vars:

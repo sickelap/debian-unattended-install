@@ -26,12 +26,12 @@ NETWORK_ARGS ?= -netdev user,id=net0 -device virtio-net,netdev=net0
 EFI_ARGS = -drive if=pflash,format=raw,readonly=on,file="$(EFI_CODE)" -drive if=pflash,format=raw,file="$(EFI_VARS)"
 QEMU_COMMON_ARGS = -machine virt,accel=hvf -cpu host -m $(RAM_MB) -smp $(CPUS) $(EFI_ARGS) $(VIDEO_ARGS) -drive if=virtio,file=$(DISK)
 
-.PHONY: all build image iso check efi-vars reset-efi-vars install install-interactive install-headless start
+.PHONY: all build image iso verify-iso check efi-vars reset-efi-vars install install-interactive install-headless start
 
 all:
-	@echo "make <image|iso|install|install-interactive|install-headless|start|build>"
+	@echo "make <image|iso|verify-iso|install|install-interactive|install-headless|start|build>"
 
-build: image install
+build: image install-headless
 
 check:
 	@test -n "$(EFI_CODE)" && test -f "$(EFI_CODE)" || (echo "EFI code image not found. Set EFI_CODE=/path/to/edk2-aarch64-code.fd"; exit 1)
@@ -68,6 +68,17 @@ $(AUTO_ISO): $(ISO) $(PRESEED)
 		-map "$(PRESEED)" /preseed.cfg \
 		-map "$(ISO_WORKDIR)/grub.cfg.auto" /boot/grub/grub.cfg >/dev/null
 	@echo created $(AUTO_ISO)
+
+verify-iso: $(AUTO_ISO)
+	@mkdir -p "$(ISO_WORKDIR)"
+	@rm -f "$(ISO_WORKDIR)/verify-preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg"
+	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract /preseed.cfg "$(ISO_WORKDIR)/verify-preseed.cfg" >/dev/null
+	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract /boot/grub/grub.cfg "$(ISO_WORKDIR)/verify-grub.cfg" >/dev/null
+	@rg -q "in-target sh -euxc" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@rg -q "snapper --no-dbus -c root create-config /;" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@rg -q "list-configs \\| grep -Eq" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@rg -q "preseed/file=/cdrom/preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg"
+	@echo "ISO verification passed: unattended boot + strict snapper late_command present."
 
 efi-vars:
 	@test -f "$(EFI_VARS)" || cp "$(EFI_VARS_TEMPLATE)" "$(EFI_VARS)"

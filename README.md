@@ -12,7 +12,7 @@ The unattended install config sets up:
 - Snapper configuration with timeline/cleanup timers
 
 ## Files
-- `Makefile`: build and run workflow (`iso`, `install`, `start`, etc.)
+- `Makefile`: build and run workflow (`clean`, `build`, `install`, `test`, `start`)
 - `preseed.cfg`: Debian preseed answers + `late_command` for Snapper setup
 
 ## Prerequisites
@@ -44,7 +44,7 @@ make build
 make start
 ```
 
-If the ISO is missing locally, `make iso`/`make install` will download it from the UK mirror automatically.
+If the ISO is missing locally, `make build`/`make install`/`make test` will download it automatically.
 
 ## Run arm64 Instead
 
@@ -54,14 +54,13 @@ make start ARCH=arm64
 ```
 
 ## Common Targets
-- `make iso`: create unattended installer ISO (`debian-auto-<arch>.iso`)
-- `make verify-iso`: verify preseed + GRUB unattended boot entry were embedded
-- `make image`: create/recreate VM disk image (`os-<arch>.qcow2`)
-- `make install`: unattended install in GUI window
-- `make install-interactive`: same as install, plus USB keyboard/tablet devices
-- `make install-headless`: unattended install over serial console (`-serial mon:stdio`)
+- `make clean`: remove generated artifacts
+- `make build`: create disk image and run unattended installer headless (exits on first reboot)
+- `make install`: run unattended installer headless (exits on first reboot)
+- `make test`: CI/local verification that unattended install completes; validates serial output marker and stores log in `.build/test`
 - `make start`: boot installed OS from disk
-- `make reset-efi-vars`: reset UEFI NVRAM vars file (`efi-vars-<arch>.fd`)
+
+The unattended ISO build target is internal (`_iso`) and is invoked automatically by `build`/`install`/`test`.
 
 ## Important Variables
 Override at runtime as needed:
@@ -82,6 +81,10 @@ Main variables:
 - `RAM_MB` (default `2048`)
 - `CPUS` (default `4`)
 - `ACCEL` (`kvm`/`tcg` on Linux, `hvf` for macOS `arm64`, `tcg` otherwise)
+- `TEST_TIMEOUT` (default `45m`, used only on Linux in `make test`)
+- `TEST_LOG` (default `.build/test/install-$(ARCH).log`)
+- `TEST_TAIL_LINES` (default `80`, number of log lines shown initially when following test log)
+- `TEST_SUCCESS_REGEX` (default reboot completion pattern checked by `make test`)
 
 ## What the Unattended Install Does
 From `preseed.cfg`:
@@ -92,6 +95,8 @@ From `preseed.cfg`:
 - creates an initial snapshot (`Initial-install`)
 
 ## Notes
-- `make image` removes and recreates the disk image file.
-- `make install` resets EFI vars each run (`reset-efi-vars`) for deterministic installer boot behavior.
+- `make build` recreates the disk image file each run.
+- `make install`/`make test` reset EFI vars each run for deterministic installer boot behavior.
+- `make test` shows a live `tail -f` style view while writing the full installer log to `TEST_LOG`.
+- `make test` uses Linux `timeout` in CI; on macOS it runs without timeout to support local MacBook verification.
 - Default networking is QEMU user networking (`virtio-net`).

@@ -93,6 +93,7 @@ install-headless: MONITOR_ARGS=
 install-headless: INPUT_ARGS=
 install-headless: install
 
+start: INPUT_ARGS=$(INTERACTIVE_INPUT_ARGS)
 start: check efi-vars
 	@echo booting installed os from $(DISK) with EFI
 	@$(QEMU) \

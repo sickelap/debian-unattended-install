@@ -3,7 +3,7 @@
 all:
 	@echo "make <clean|full-clean|build|install|test|start>"
 
-build: _image install
+build: _image _iso _verify-iso
 
 clean:
 	@echo "removing build artifacts"

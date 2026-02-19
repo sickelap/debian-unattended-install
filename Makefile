@@ -2,10 +2,31 @@ QEMU ?= qemu-system-aarch64
 QEMU_IMG ?= qemu-img
 DISK ?= os.qcow2
 DISK_SIZE ?= 20G
+HOST_OS := $(shell uname -s)
+HOST_ARCH := $(shell uname -m)
 
-# Prefer stable Homebrew locations first, then any versioned Cellar fallback.
-EFI_CODE ?= $(firstword $(wildcard /opt/homebrew/share/qemu/edk2-aarch64-code.fd /usr/local/share/qemu/edk2-aarch64-code.fd /opt/homebrew/Cellar/qemu/*/share/qemu/edk2-aarch64-code.fd))
-EFI_VARS_TEMPLATE ?= $(firstword $(wildcard /opt/homebrew/share/qemu/edk2-aarch64-vars.fd /opt/homebrew/share/qemu/edk2-arm-vars.fd /usr/local/share/qemu/edk2-aarch64-vars.fd /usr/local/share/qemu/edk2-arm-vars.fd /opt/homebrew/Cellar/qemu/*/share/qemu/edk2-aarch64-vars.fd /opt/homebrew/Cellar/qemu/*/share/qemu/edk2-arm-vars.fd))
+# EFI firmware paths across macOS (Homebrew) and Linux distributions.
+EFI_CODE ?= $(firstword $(wildcard \
+	/opt/homebrew/share/qemu/edk2-aarch64-code.fd \
+	/usr/local/share/qemu/edk2-aarch64-code.fd \
+	/opt/homebrew/Cellar/qemu/*/share/qemu/edk2-aarch64-code.fd \
+	/usr/share/qemu/edk2-aarch64-code.fd \
+	/usr/share/qemu-efi-aarch64/QEMU_EFI.fd \
+	/usr/share/AAVMF/AAVMF_CODE.fd \
+	/usr/share/edk2/aarch64/QEMU_EFI.fd \
+))
+EFI_VARS_TEMPLATE ?= $(firstword $(wildcard \
+	/opt/homebrew/share/qemu/edk2-aarch64-vars.fd \
+	/opt/homebrew/share/qemu/edk2-arm-vars.fd \
+	/usr/local/share/qemu/edk2-aarch64-vars.fd \
+	/usr/local/share/qemu/edk2-arm-vars.fd \
+	/opt/homebrew/Cellar/qemu/*/share/qemu/edk2-aarch64-vars.fd \
+	/opt/homebrew/Cellar/qemu/*/share/qemu/edk2-arm-vars.fd \
+	/usr/share/qemu/edk2-aarch64-vars.fd \
+	/usr/share/qemu/edk2-arm-vars.fd \
+	/usr/share/AAVMF/AAVMF_VARS.fd \
+	/usr/share/edk2/aarch64/vars-template-pflash.raw \
+))
 EFI_VARS ?= efi-vars.fd
 
 ISO ?= debian-13.3.0-arm64-netinst.iso
@@ -17,14 +38,40 @@ CDROM ?= $(AUTO_ISO)
 
 RAM_MB ?= 2048
 CPUS ?= 4
-DISPLAY_ARGS ?= -display cocoa
 MONITOR_ARGS ?= -monitor none
 VIDEO_ARGS ?= -device ramfb
 INPUT_ARGS ?=
 INTERACTIVE_INPUT_ARGS ?= -device qemu-xhci -device usb-kbd -device usb-tablet
 NETWORK_ARGS ?= -netdev user,id=net0 -device virtio-net,netdev=net0
-EFI_ARGS = -drive if=pflash,format=raw,readonly=on,file="$(EFI_CODE)" -drive if=pflash,format=raw,file="$(EFI_VARS)"
-QEMU_COMMON_ARGS = -machine virt,accel=hvf -cpu host -m $(RAM_MB) -smp $(CPUS) $(EFI_ARGS) $(VIDEO_ARGS) -drive if=virtio,file=$(DISK)
+
+ifeq ($(HOST_OS),Darwin)
+ACCEL ?= hvf
+DISPLAY_ARGS ?= -display cocoa
+else
+ACCEL ?= tcg
+DISPLAY_ARGS ?= -display gtk
+ifneq ($(filter aarch64 arm64,$(HOST_ARCH)),)
+ifneq ($(wildcard /dev/kvm),)
+ACCEL := kvm
+endif
+endif
+endif
+
+ifeq ($(ACCEL),tcg)
+CPU_MODEL ?= max
+else
+CPU_MODEL ?= host
+endif
+
+EFI_ARGS = -drive if=pflash,format=raw,readonly=on,file="$(EFI_CODE)" \
+	   -drive if=pflash,format=raw,file="$(EFI_VARS)"
+QEMU_COMMON_ARGS = -machine virt,accel=$(ACCEL) \
+		   -cpu $(CPU_MODEL) \
+		   -m $(RAM_MB) \
+		   -smp $(CPUS) \
+		   -drive if=virtio,file=$(DISK) \
+		   $(EFI_ARGS) \
+		   $(VIDEO_ARGS)
 
 .PHONY: all build image iso verify-iso check efi-vars reset-efi-vars install install-interactive install-headless start
 

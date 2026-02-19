@@ -12,7 +12,8 @@ The unattended install config sets up:
 - Snapper configuration with timeline/cleanup timers
 
 ## Files
-- `Makefile`: build and run workflow (`clean`, `build`, `install`, `test`, `start`)
+- `Makefile`: entrypoint that includes modular build logic from `mk/*.mk`
+- `mk/common.mk`, `mk/arch.mk`, `mk/os.mk`, `mk/test.mk`, `mk/targets.mk`: split configuration and targets by concern
 - `preseed.cfg`: Debian preseed answers + `late_command` for Snapper setup
 
 ## Prerequisites

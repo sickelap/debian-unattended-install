@@ -55,6 +55,7 @@ make start ARCH=arm64
 
 ## Common Targets
 - `make clean`: remove generated artifacts
+- `make full-clean`: remove build artifacts and downloaded installer ISOs
 - `make build`: create disk image and run unattended installer headless (exits on first reboot)
 - `make install`: run unattended installer headless (exits on first reboot)
 - `make test`: CI/local verification that unattended install completes; validates serial output marker and stores log in `.build/test`

@@ -146,16 +146,20 @@ QEMU_COMMON_ARGS = -machine $(MACHINE_TYPE),accel=$(ACCEL) \
 		   $(EFI_ARGS) \
 		   $(VIDEO_ARGS)
 
-.PHONY: all clean build install test start
+.PHONY: all clean full-clean build install test start
 
 all:
-	@echo "make <clean|build|install|test|start>"
+	@echo "make <clean|full-clean|build|install|test|start>"
 
 build: _image install
 
 clean:
-	@echo "removing generated artifacts"
-	@rm -rf *.qcow2 efi-vars-*.fd *.iso .build
+	@echo "removing build artifacts"
+	@rm -rf *.qcow2 efi-vars-*.fd debian-auto-*.iso .build
+
+full-clean: clean
+	@echo "removing downloaded installer artifacts"
+	@rm -f debian-*-netinst.iso
 
 _check:
 	@test -n "$(EFI_CODE)" && test -f "$(EFI_CODE)" || (echo "EFI code image not found for ARCH=$(ARCH). Set EFI_CODE=/path/to/$(EFI_CODE_HINT)"; exit 1)

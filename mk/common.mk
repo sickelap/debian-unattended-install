@@ -15,7 +15,9 @@ endif
 
 DISK ?= os-$(ARCH).qcow2
 EFI_VARS ?= efi-vars-$(ARCH).fd
-AUTO_ISO ?= debian-auto-$(ARCH).iso
+AUTO_ISO_INSTALL ?= debian-auto-install-$(ARCH).iso
+AUTO_ISO_TEST ?= debian-auto-test-$(ARCH).iso
+AUTO_ISO ?= $(AUTO_ISO_INSTALL)
 DEBIAN_VERSION ?= 13.3.0
 ISO_FILENAME ?= debian-$(DEBIAN_VERSION)-$(ARCH)-netinst.iso
 ISO_MIRROR ?= https://www.mirrorservice.org/sites/cdimage.debian.org/debian-cd/current
@@ -25,6 +27,10 @@ PRESEED ?= preseed.cfg
 ISO_WORKDIR ?= .build/autoiso-$(ARCH)
 # Default installer media is unattended ISO.
 CDROM ?= $(AUTO_ISO)
+GRUB_KERNEL_ARGS_COMMON ?= auto=true priority=critical preseed/file=/cdrom/preseed.cfg
+GRUB_KERNEL_ARGS_INSTALL ?= $(GRUB_KERNEL_ARGS_COMMON) console=tty0
+GRUB_KERNEL_ARGS_TEST ?= $(GRUB_KERNEL_ARGS_COMMON) DEBIAN_FRONTEND=text console=tty0 console=$(SERIAL_CONSOLE),115200n8
+GRUB_KERNEL_ARGS ?= $(GRUB_KERNEL_ARGS_INSTALL)
 
 RAM_MB ?= 2048
 CPUS ?= 4

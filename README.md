@@ -33,7 +33,7 @@ The `Makefile` auto-detects common firmware paths on macOS/Homebrew and Linux. I
 
 ## Quick Start (Linux amd64)
 1. Put Debian netinst ISO in repo root: `debian-13.3.0-amd64-netinst.iso`.
-2. Build disk image and run unattended install (headless):
+2. Build unattended installer ISO assets:
 
 ```bash
 make build
@@ -57,8 +57,8 @@ make start ARCH=arm64
 ## Common Targets
 - `make clean`: remove generated artifacts
 - `make full-clean`: remove build artifacts and downloaded installer ISOs
-- `make build`: create disk image and run unattended installer headless (exits on first reboot)
-- `make install`: run unattended installer headless (exits on first reboot)
+- `make build`: create disk image and unattended installer ISO assets
+- `make install`: run unattended installer in a QEMU window (exits on first reboot)
 - `make test`: CI/local verification that unattended install completes; validates serial output marker and stores log in `.build/test`
 - `make start`: boot installed OS from disk
 
@@ -77,6 +77,8 @@ Main variables:
 - `ISO_MIRROR` (default `https://www.mirrorservice.org/sites/cdimage.debian.org/debian-cd/current`)
 - `ISO_URL` (full download URL, auto-computed from mirror/arch/version)
 - `AUTO_ISO` (default `debian-auto-$(ARCH).iso`)
+- `AUTO_ISO_INSTALL` (default `debian-auto-install-$(ARCH).iso`)
+- `AUTO_ISO_TEST` (default `debian-auto-test-$(ARCH).iso`)
 - `DISK` (default `os-$(ARCH).qcow2`)
 - `EFI_VARS` (default `efi-vars-$(ARCH).fd`)
 - `DISK_SIZE` (default `20G`)
@@ -101,6 +103,11 @@ From `preseed.cfg`:
 ## Notes
 - `make build` recreates the disk image file each run.
 - `make install`/`make test` reset EFI vars each run for deterministic installer boot behavior.
+- `make install` runs in a QEMU window; serial/headless mode (`-display none -serial mon:stdio`) is used only by `make test`.
+- `make install` and `make test` now use separate unattended ISO profiles (`AUTO_ISO_INSTALL` and `AUTO_ISO_TEST`) while sharing the same base preseed and ISO build flow.
+- `make install` uses `GRUB_KERNEL_ARGS_INSTALL` (default `... console=tty0`) for windowed installer display.
+- `make test` uses `GRUB_KERNEL_ARGS_TEST` (default `... DEBIAN_FRONTEND=text console=tty0 console=$(SERIAL_CONSOLE),115200n8`) for serial-friendly CI/log assertions.
+- `arm64` uses `-device virtio-gpu-pci` by default for installer display output (override with `VIDEO_ARGS=...` if needed).
 - `make test` shows a live `tail -f` style view while writing the full installer log to `TEST_LOG`.
 - `make test` uses Linux `timeout` in CI; on macOS it runs without timeout to support local MacBook verification.
 - The unattended ISO embeds `/authorized_key.pub` and `preseed.cfg` installs it as `/home/user/.ssh/authorized_keys` if non-empty.

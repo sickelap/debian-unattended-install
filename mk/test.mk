@@ -22,6 +22,9 @@ test:
 			$(MAKE) --no-print-directory _image _install \
 				DISK="$(TEST_DISK)" \
 				EFI_VARS="$(TEST_EFI_VARS)" \
+				AUTO_ISO="$(AUTO_ISO_TEST)" \
+				CDROM="$(AUTO_ISO_TEST)" \
+				GRUB_KERNEL_ARGS="$(GRUB_KERNEL_ARGS_TEST)" \
 				DISPLAY_ARGS="-display none -serial mon:stdio" \
 				MONITOR_ARGS= \
 				INPUT_ARGS= >>"$(TEST_LOG)" 2>&1; \
@@ -29,6 +32,9 @@ test:
 		$(MAKE) --no-print-directory _image _install \
 			DISK="$(TEST_DISK)" \
 			EFI_VARS="$(TEST_EFI_VARS)" \
+			AUTO_ISO="$(AUTO_ISO_TEST)" \
+			CDROM="$(AUTO_ISO_TEST)" \
+			GRUB_KERNEL_ARGS="$(GRUB_KERNEL_ARGS_TEST)" \
 			DISPLAY_ARGS="-display none -serial mon:stdio" \
 			MONITOR_ARGS= \
 			INPUT_ARGS= >>"$(TEST_LOG)" 2>&1; \

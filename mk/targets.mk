@@ -7,7 +7,7 @@ build: _image _iso _verify-iso
 
 clean:
 	@echo "removing build artifacts"
-	@rm -rf *.qcow2 efi-vars-*.fd debian-auto-*.iso .build
+	@rm -rf *.qcow2 efi-vars-*.fd debian-auto-*.iso debian-auto-install-*.iso debian-auto-test-*.iso .build
 
 full-clean: clean
 	@echo "removing downloaded installer artifacts"
@@ -54,7 +54,7 @@ $(AUTO_ISO): $(ISO) $(PRESEED)
 		'set timeout=0' \
 		'' \
 		'menuentry '\''Unattended install (Btrfs snapshots)'\'' {' \
-		'    linux /$(GRUB_INSTALL_DIR)/vmlinuz auto=true priority=critical preseed/file=/cdrom/preseed.cfg DEBIAN_FRONTEND=text console=tty0 console=$(SERIAL_CONSOLE),115200n8 ---' \
+		'    linux /$(GRUB_INSTALL_DIR)/vmlinuz $(GRUB_KERNEL_ARGS) ---' \
 		'    initrd /$(GRUB_INSTALL_DIR)/initrd.gz' \
 		'}' \
 		'' \
@@ -100,9 +100,10 @@ _install: build _check _reset-efi-vars
 		$(INPUT_ARGS) \
 		$(NETWORK_ARGS)
 
-install: DISPLAY_ARGS=-display none -serial mon:stdio
-install: MONITOR_ARGS=
-install: INPUT_ARGS=
+install: INPUT_ARGS=$(INTERACTIVE_INPUT_ARGS)
+install: AUTO_ISO=$(AUTO_ISO_INSTALL)
+install: CDROM=$(AUTO_ISO)
+install: GRUB_KERNEL_ARGS=$(GRUB_KERNEL_ARGS_INSTALL)
 install: _install
 
 start: INPUT_ARGS=$(INTERACTIVE_INPUT_ARGS)

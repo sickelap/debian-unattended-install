@@ -138,29 +138,28 @@ QEMU_COMMON_ARGS = -machine $(MACHINE_TYPE),accel=$(ACCEL) \
 		   $(EFI_ARGS) \
 		   $(VIDEO_ARGS)
 
-.PHONY: all build clean image iso verify-iso check efi-vars reset-efi-vars install install-interactive install-headless start download-iso
+.PHONY: all clean build install start
 
 all:
-	@echo "make <clean|image|iso|verify-iso|install|install-interactive|install-headless|start|build|download-iso>"
+	@echo "make <clean|build|install|start>"
 
-build: image install-headless
+build: _image install
 
 clean:
 	@echo "removing generated artifacts"
 	@rm -rf *.qcow2 efi-vars-*.fd *.iso .build
 
-check:
+_check:
 	@test -n "$(EFI_CODE)" && test -f "$(EFI_CODE)" || (echo "EFI code image not found for ARCH=$(ARCH). Set EFI_CODE=/path/to/$(EFI_CODE_HINT)"; exit 1)
 	@test -n "$(EFI_VARS_TEMPLATE)" && test -f "$(EFI_VARS_TEMPLATE)" || (echo "EFI vars template not found for ARCH=$(ARCH). Set EFI_VARS_TEMPLATE=/path/to/$(EFI_VARS_HINT)"; exit 1)
 	@test -f "$(CDROM)" || (echo "CDROM/ISO not found: $(CDROM)"; exit 1)
 
-image:
+_image:
 	@echo creating image $(DISK)
 	@rm -f "$(DISK)"
 	@$(QEMU_IMG) create -f qcow2 "$(DISK)" "$(DISK_SIZE)"
 
-iso: $(AUTO_ISO)
-download-iso: $(ISO)
+_iso: $(AUTO_ISO)
 
 $(ISO):
 	@echo "ISO not found locally: $(ISO)"
@@ -199,7 +198,7 @@ $(AUTO_ISO): $(ISO) $(PRESEED)
 		-map "$(ISO_WORKDIR)/grub.cfg.auto" /boot/grub/grub.cfg >/dev/null
 	@echo created $(AUTO_ISO)
 
-verify-iso: $(AUTO_ISO)
+_verify-iso: $(AUTO_ISO)
 	@mkdir -p "$(ISO_WORKDIR)"
 	@rm -f "$(ISO_WORKDIR)/verify-preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg"
 	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract /preseed.cfg "$(ISO_WORKDIR)/verify-preseed.cfg" >/dev/null
@@ -210,32 +209,30 @@ verify-iso: $(AUTO_ISO)
 	@rg -q "preseed/file=/cdrom/preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg"
 	@echo "ISO verification passed: unattended boot + strict snapper late_command present."
 
-efi-vars:
+_efi-vars:
 	@test -f "$(EFI_VARS)" || cp "$(EFI_VARS_TEMPLATE)" "$(EFI_VARS)"
 
-reset-efi-vars:
+_reset-efi-vars:
 	@cp "$(EFI_VARS_TEMPLATE)" "$(EFI_VARS)"
 
-install: iso check reset-efi-vars
-	@echo installing os from $(CDROM) in GUI window with EFI
+_install: _iso _check _reset-efi-vars
+	@echo "installing os from $(CDROM) in GUI window with EFI (exit on first reboot)"
 	@$(QEMU) \
 		$(QEMU_COMMON_ARGS) \
 		-cdrom "$(CDROM)" \
+		-no-reboot \
 		$(DISPLAY_ARGS) \
 		$(MONITOR_ARGS) \
 		$(INPUT_ARGS) \
 		$(NETWORK_ARGS)
 
-install-interactive: INPUT_ARGS=$(INTERACTIVE_INPUT_ARGS)
-install-interactive: install
-
-install-headless: DISPLAY_ARGS=-display none -serial mon:stdio
-install-headless: MONITOR_ARGS=
-install-headless: INPUT_ARGS=
-install-headless: install
+install: DISPLAY_ARGS=-display none -serial mon:stdio
+install: MONITOR_ARGS=
+install: INPUT_ARGS=
+install: _install
 
 start: INPUT_ARGS=$(INTERACTIVE_INPUT_ARGS)
-start: check efi-vars
+start: _check _efi-vars
 	@echo booting installed os from $(DISK) with EFI
 	@$(QEMU) \
 		$(QEMU_COMMON_ARGS) \

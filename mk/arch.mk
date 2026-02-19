@@ -30,8 +30,11 @@ EFI_CODE ?= $(firstword $(wildcard \
 ))
 EFI_VARS_TEMPLATE ?= $(firstword $(wildcard \
 	/opt/homebrew/share/qemu/edk2-x86_64-vars.fd \
+	/opt/homebrew/share/qemu/edk2-i386-vars.fd \
 	/usr/local/share/qemu/edk2-x86_64-vars.fd \
+	/usr/local/share/qemu/edk2-i386-vars.fd \
 	/opt/homebrew/Cellar/qemu/*/share/qemu/edk2-x86_64-vars.fd \
+	/opt/homebrew/Cellar/qemu/*/share/qemu/edk2-i386-vars.fd \
 	/usr/share/OVMF/OVMF_VARS_4M.fd \
 	/usr/share/OVMF/OVMF_VARS.fd \
 	/usr/share/edk2/ovmf/OVMF_VARS.fd \

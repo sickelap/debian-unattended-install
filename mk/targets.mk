@@ -89,7 +89,7 @@ _efi-vars:
 _reset-efi-vars:
 	@cp "$(EFI_VARS_TEMPLATE)" "$(EFI_VARS)"
 
-_install: _iso _check _reset-efi-vars
+_install: build _check _reset-efi-vars
 	@echo "installing os from $(CDROM)"
 	@$(QEMU) \
 		$(QEMU_COMMON_ARGS) \

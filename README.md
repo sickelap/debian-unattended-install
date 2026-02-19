@@ -44,6 +44,8 @@ make build
 make start
 ```
 
+If the ISO is missing locally, `make iso`/`make install` will download it from the UK mirror automatically.
+
 ## Run arm64 Instead
 
 ```bash
@@ -71,6 +73,8 @@ make build ARCH=amd64 ISO=debian-13.3.0-amd64-netinst.iso DISK=myvm.qcow2 DISK_S
 Main variables:
 - `ARCH` (`amd64` or `arm64`)
 - `ISO` (default depends on `ARCH`)
+- `ISO_MIRROR` (default `https://www.mirrorservice.org/sites/cdimage.debian.org/debian-cd/current`)
+- `ISO_URL` (full download URL, auto-computed from mirror/arch/version)
 - `AUTO_ISO` (default `debian-auto-$(ARCH).iso`)
 - `DISK` (default `os-$(ARCH).qcow2`)
 - `EFI_VARS` (default `efi-vars-$(ARCH).fd`)

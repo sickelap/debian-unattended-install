@@ -1,5 +1,5 @@
 *.qcow2
 *.iso
-efi-vars.fd
+efi-vars-*.fd
 .tmpiso
 .build

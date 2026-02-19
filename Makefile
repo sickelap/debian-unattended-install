@@ -29,7 +29,7 @@ QEMU ?= qemu-system-x86_64
 MACHINE_TYPE ?= q35
 GRUB_INSTALL_DIR ?= install.amd
 SERIAL_CONSOLE ?= ttyS0
-ISO ?= debian-13.3.0-amd64-netinst.iso
+ISO_ARCH_DIR ?= amd64
 VIDEO_ARGS ?=
 EFI_CODE_HINT ?= OVMF_CODE.fd
 EFI_VARS_HINT ?= OVMF_VARS.fd
@@ -58,7 +58,7 @@ QEMU ?= qemu-system-aarch64
 MACHINE_TYPE ?= virt
 GRUB_INSTALL_DIR ?= install.a64
 SERIAL_CONSOLE ?= ttyAMA0
-ISO ?= debian-13.3.0-arm64-netinst.iso
+ISO_ARCH_DIR ?= arm64
 VIDEO_ARGS ?= -device ramfb
 EFI_CODE_HINT ?= edk2-aarch64-code.fd
 EFI_VARS_HINT ?= edk2-aarch64-vars.fd
@@ -88,6 +88,11 @@ endif
 DISK ?= os-$(ARCH).qcow2
 EFI_VARS ?= efi-vars-$(ARCH).fd
 AUTO_ISO ?= debian-auto-$(ARCH).iso
+DEBIAN_VERSION ?= 13.3.0
+ISO_FILENAME ?= debian-$(DEBIAN_VERSION)-$(ARCH)-netinst.iso
+ISO_MIRROR ?= https://www.mirrorservice.org/sites/cdimage.debian.org/debian-cd/current
+ISO_URL ?= $(ISO_MIRROR)/$(ISO_ARCH_DIR)/iso-cd/$(ISO_FILENAME)
+ISO ?= $(ISO_FILENAME)
 PRESEED ?= preseed.cfg
 ISO_WORKDIR ?= .build/autoiso-$(ARCH)
 # Default installer media is unattended ISO.
@@ -133,10 +138,10 @@ QEMU_COMMON_ARGS = -machine $(MACHINE_TYPE),accel=$(ACCEL) \
 		   $(EFI_ARGS) \
 		   $(VIDEO_ARGS)
 
-.PHONY: all build image iso verify-iso check efi-vars reset-efi-vars install install-interactive install-headless start
+.PHONY: all build image iso verify-iso check efi-vars reset-efi-vars install install-interactive install-headless start download-iso
 
 all:
-	@echo "make <image|iso|verify-iso|install|install-interactive|install-headless|start|build>"
+	@echo "make <image|iso|verify-iso|install|install-interactive|install-headless|start|build|download-iso>"
 
 build: image install-headless
 
@@ -151,6 +156,20 @@ image:
 	@$(QEMU_IMG) create -f qcow2 "$(DISK)" "$(DISK_SIZE)"
 
 iso: $(AUTO_ISO)
+download-iso: $(ISO)
+
+$(ISO):
+	@echo "ISO not found locally: $(ISO)"
+	@echo "downloading from $(ISO_URL)"
+	@mkdir -p "$(dir $(ISO))"
+	@if command -v curl >/dev/null 2>&1; then \
+		curl -fL --progress-bar -o "$(ISO)" "$(ISO_URL)"; \
+	elif command -v wget >/dev/null 2>&1; then \
+		wget -O "$(ISO)" "$(ISO_URL)"; \
+	else \
+		echo "Neither curl nor wget found; install one to download ISO."; \
+		exit 1; \
+	fi
 
 $(AUTO_ISO): $(ISO) $(PRESEED)
 	@echo creating unattended iso $(AUTO_ISO)

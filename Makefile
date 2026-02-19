@@ -138,12 +138,16 @@ QEMU_COMMON_ARGS = -machine $(MACHINE_TYPE),accel=$(ACCEL) \
 		   $(EFI_ARGS) \
 		   $(VIDEO_ARGS)
 
-.PHONY: all build image iso verify-iso check efi-vars reset-efi-vars install install-interactive install-headless start download-iso
+.PHONY: all build clean image iso verify-iso check efi-vars reset-efi-vars install install-interactive install-headless start download-iso
 
 all:
-	@echo "make <image|iso|verify-iso|install|install-interactive|install-headless|start|build|download-iso>"
+	@echo "make <clean|image|iso|verify-iso|install|install-interactive|install-headless|start|build|download-iso>"
 
 build: image install-headless
+
+clean:
+	@echo "removing generated artifacts"
+	@rm -rf *.qcow2 efi-vars-*.fd *.iso .build
 
 check:
 	@test -n "$(EFI_CODE)" && test -f "$(EFI_CODE)" || (echo "EFI code image not found for ARCH=$(ARCH). Set EFI_CODE=/path/to/$(EFI_CODE_HINT)"; exit 1)

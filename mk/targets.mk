@@ -59,7 +59,7 @@ $(ISO):
 		exit 1; \
 	fi
 
-$(AUTO_ISO): $(ISO) $(PRESEED)
+$(AUTO_ISO): $(ISO) $(PRESEED) $(PARTMAN_EARLY_SCRIPT) $(PRESEED_LATE_SCRIPT)
 	@echo creating unattended iso $(AUTO_ISO)
 	@rm -rf "$(ISO_WORKDIR)"
 	@mkdir -p "$(ISO_WORKDIR)"
@@ -89,28 +89,36 @@ $(AUTO_ISO): $(ISO) $(PRESEED)
 	@xorriso -indev "$(ISO)" -outdev "$(AUTO_ISO)" \
 		-boot_image any replay \
 		-map "$(PRESEED)" /preseed.cfg \
+		-map "$(PARTMAN_EARLY_SCRIPT)" "$(PARTMAN_EARLY_ISO_PATH)" \
+		-map "$(PRESEED_LATE_SCRIPT)" "$(PRESEED_LATE_ISO_PATH)" \
 		-map "$(AUTHORIZED_KEY_HOST_FILE)" "$(AUTHORIZED_KEY_ISO_PATH)" \
 		-map "$(ISO_WORKDIR)/grub.cfg.auto" /boot/grub/grub.cfg >/dev/null
 	@echo created $(AUTO_ISO)
 
 _verify-iso: $(AUTO_ISO)
 	@mkdir -p "$(ISO_WORKDIR)"
-	@rm -f "$(ISO_WORKDIR)/verify-preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg" "$(ISO_WORKDIR)/verify-authorized_key.pub"
+	@rm -f "$(ISO_WORKDIR)/verify-preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg" "$(ISO_WORKDIR)/verify-authorized_key.pub" "$(ISO_WORKDIR)/verify-partman-early.sh" "$(ISO_WORKDIR)/verify-preseed-late.sh"
 	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract /preseed.cfg "$(ISO_WORKDIR)/verify-preseed.cfg" >/dev/null
 	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract /boot/grub/grub.cfg "$(ISO_WORKDIR)/verify-grub.cfg" >/dev/null
 	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract "$(AUTHORIZED_KEY_ISO_PATH)" "$(ISO_WORKDIR)/verify-authorized_key.pub" >/dev/null
-	@rg -q "in-target sh -euxc" "$(ISO_WORKDIR)/verify-preseed.cfg"
-	@rg -q "snapper --no-dbus -c root create-config /;" "$(ISO_WORKDIR)/verify-preseed.cfg"
-	@rg -q "list-configs \\| grep -Eq" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract "$(PARTMAN_EARLY_ISO_PATH)" "$(ISO_WORKDIR)/verify-partman-early.sh" >/dev/null
+	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract "$(PRESEED_LATE_ISO_PATH)" "$(ISO_WORKDIR)/verify-preseed-late.sh" >/dev/null
 	@rg -q "partman/early_command string" "$(ISO_WORKDIR)/verify-preseed.cfg"
-	@rg -q "debconf-set partman-auto/disk" "$(ISO_WORKDIR)/verify-preseed.cfg"
-	@rg -q "debconf-set grub-installer/bootdev" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@rg -q "/cdrom/installer-hooks/partman-early.sh" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@rg -q "preseed/late_command string" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@rg -q "/cdrom/installer-hooks/preseed-late.sh" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@rg -q "debconf-set partman-auto/disk" "$(ISO_WORKDIR)/verify-partman-early.sh"
+	@rg -q "debconf-set grub-installer/bootdev" "$(ISO_WORKDIR)/verify-partman-early.sh"
+	@rg -q "snapper --no-dbus -c root create-config /" "$(ISO_WORKDIR)/verify-preseed-late.sh"
+	@rg -q "list-configs \\| grep -Eq" "$(ISO_WORKDIR)/verify-preseed-late.sh"
 	@rg -q "^set timeout_style=hidden$$" "$(ISO_WORKDIR)/verify-grub.cfg"
 	@rg -q "^set timeout=0$$" "$(ISO_WORKDIR)/verify-grub.cfg"
 	@test "$$(rg -c "^menuentry " "$(ISO_WORKDIR)/verify-grub.cfg")" -eq 1
 	@rg -q "preseed/file=/cdrom/preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg"
 	@test -f "$(ISO_WORKDIR)/verify-authorized_key.pub"
-	@echo "ISO verification passed: unattended boot + strict snapper late_command present."
+	@test -s "$(ISO_WORKDIR)/verify-partman-early.sh"
+	@test -s "$(ISO_WORKDIR)/verify-preseed-late.sh"
+	@echo "ISO verification passed: unattended boot + injected installer hook scripts present."
 
 _efi-vars:
 	@test -f "$(EFI_VARS)" || cp "$(EFI_VARS_TEMPLATE)" "$(EFI_VARS)"

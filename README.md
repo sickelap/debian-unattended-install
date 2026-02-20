@@ -158,6 +158,11 @@ make build ARCH=amd64 ISO=debian-13.3.0-amd64-netinst.iso DISK=myvm.qcow2 DISK_S
 
 ### Boot/Installer
 - `PRESEED`
+- `INSTALLER_HOOKS_DIR`
+- `PARTMAN_EARLY_SCRIPT`
+- `PRESEED_LATE_SCRIPT`
+- `PARTMAN_EARLY_ISO_PATH`
+- `PRESEED_LATE_ISO_PATH`
 - `AUTO_ISO`
 - `AUTO_ISO_INSTALL`
 - `AUTO_ISO_TEST`
@@ -178,6 +183,13 @@ make build ARCH=amd64 ISO=debian-13.3.0-amd64-netinst.iso DISK=myvm.qcow2 DISK_S
 - `TEST_TAIL_LINES`
 - `TEST_SUCCESS_REGEX`
 - `TIMEOUT`
+
+## Installer Hooks
+- Partitioning and post-install customization are executed from injected ISO scripts:
+  - `/installer-hooks/partman-early.sh`
+  - `/installer-hooks/preseed-late.sh`
+- These scripts are sourced from repo files under `installer-hooks/` and mapped into the unattended ISO during `make build`.
+- Hook scripts are executed explicitly via `/bin/sh`, so execute permissions are not required.
 
 ## Notes
 - Partitioning is destructive on the selected target disk.

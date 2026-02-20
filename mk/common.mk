@@ -24,6 +24,11 @@ ISO_MIRROR ?= https://www.mirrorservice.org/sites/cdimage.debian.org/debian-cd/c
 ISO_URL ?= $(ISO_MIRROR)/$(ISO_ARCH_DIR)/iso-cd/$(ISO_FILENAME)
 ISO ?= $(ISO_FILENAME)
 PRESEED ?= preseed.cfg
+INSTALLER_HOOKS_DIR ?= installer-hooks
+PARTMAN_EARLY_SCRIPT ?= $(INSTALLER_HOOKS_DIR)/partman-early.sh
+PRESEED_LATE_SCRIPT ?= $(INSTALLER_HOOKS_DIR)/preseed-late.sh
+PARTMAN_EARLY_ISO_PATH ?= /installer-hooks/partman-early.sh
+PRESEED_LATE_ISO_PATH ?= /installer-hooks/preseed-late.sh
 ISO_WORKDIR ?= .build/autoiso-$(ARCH)
 # Default installer media is unattended ISO.
 CDROM ?= $(AUTO_ISO)

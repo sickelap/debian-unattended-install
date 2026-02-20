@@ -5,6 +5,14 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 # shellcheck source=/dev/null
 . "$script_dir/common.sh"
 
+run_maybe_quiet() {
+  if [ "${QUIET:-1}" = "1" ]; then
+    "$@" >/dev/null 2>&1
+  else
+    "$@"
+  fi
+}
+
 require_env ISO
 require_env AUTO_ISO
 require_env PRESEED
@@ -49,11 +57,11 @@ menuentry 'Unattended install (Btrfs snapshots)' {
 EOF
 
 rm -f "$AUTO_ISO"
-xorriso -indev "$ISO" -outdev "$AUTO_ISO" \
+run_maybe_quiet xorriso -indev "$ISO" -outdev "$AUTO_ISO" \
   -boot_image any replay \
   -map "$PRESEED" /preseed.cfg \
   -map "$PARTMAN_EARLY_SCRIPT" "$PARTMAN_EARLY_ISO_PATH" \
   -map "$PRESEED_LATE_SCRIPT" "$PRESEED_LATE_ISO_PATH" \
   -map "$INSTALLER_COMMON_SCRIPT" "$INSTALLER_COMMON_ISO_PATH" \
   -map "$AUTHORIZED_KEY_HOST_FILE" "$AUTHORIZED_KEY_ISO_PATH" \
-  -map "$ISO_WORKDIR/grub.cfg.auto" /boot/grub/grub.cfg >/dev/null 2>&1
+  -map "$ISO_WORKDIR/grub.cfg.auto" /boot/grub/grub.cfg

@@ -170,6 +170,7 @@ make build ARCH=amd64 ISO=debian-13.3.0-amd64-netinst.iso DISK=myvm.qcow2 DISK_S
 - `GRUB_KERNEL_ARGS_INSTALL`
 - `GRUB_KERNEL_ARGS_TEST`
 - `GRUB_KERNEL_ARGS`
+- `QUIET` (`1` by default; set `QUIET=0` for verbose tool output)
 
 ### SSH Key Injection
 - `SSH_PUBLIC_KEY_GLOB`

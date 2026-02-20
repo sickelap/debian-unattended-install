@@ -1,4 +1,5 @@
 QEMU_IMG ?= qemu-img
+QUIET ?= 1
 DISK_SIZE ?= 20G
 HOST_OS := $(shell uname -s)
 HOST_ARCH_RAW := $(shell uname -m)

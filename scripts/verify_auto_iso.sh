@@ -5,6 +5,14 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 # shellcheck source=/dev/null
 . "$script_dir/common.sh"
 
+run_maybe_quiet() {
+  if [ "${QUIET:-1}" = "1" ]; then
+    "$@" >/dev/null 2>&1
+  else
+    "$@"
+  fi
+}
+
 assert_file_contains() {
   file_path=$1
   pattern=$2
@@ -35,12 +43,12 @@ extract_assets() {
     "$VERIFY_PRESEED_LATE_HOST_FILE" \
     "$VERIFY_INSTALLER_COMMON_HOST_FILE"
 
-  xorriso -osirrox on -indev "$AUTO_ISO" -extract /preseed.cfg "$VERIFY_PRESEED_HOST_FILE" >/dev/null 2>&1
-  xorriso -osirrox on -indev "$AUTO_ISO" -extract /boot/grub/grub.cfg "$VERIFY_GRUB_HOST_FILE" >/dev/null 2>&1
-  xorriso -osirrox on -indev "$AUTO_ISO" -extract "$AUTHORIZED_KEY_ISO_PATH" "$VERIFY_AUTHORIZED_KEY_HOST_FILE" >/dev/null 2>&1
-  xorriso -osirrox on -indev "$AUTO_ISO" -extract "$PARTMAN_EARLY_ISO_PATH" "$VERIFY_PARTMAN_EARLY_HOST_FILE" >/dev/null 2>&1
-  xorriso -osirrox on -indev "$AUTO_ISO" -extract "$PRESEED_LATE_ISO_PATH" "$VERIFY_PRESEED_LATE_HOST_FILE" >/dev/null 2>&1
-  xorriso -osirrox on -indev "$AUTO_ISO" -extract "$INSTALLER_COMMON_ISO_PATH" "$VERIFY_INSTALLER_COMMON_HOST_FILE" >/dev/null 2>&1
+  run_maybe_quiet xorriso -osirrox on -indev "$AUTO_ISO" -extract /preseed.cfg "$VERIFY_PRESEED_HOST_FILE"
+  run_maybe_quiet xorriso -osirrox on -indev "$AUTO_ISO" -extract /boot/grub/grub.cfg "$VERIFY_GRUB_HOST_FILE"
+  run_maybe_quiet xorriso -osirrox on -indev "$AUTO_ISO" -extract "$AUTHORIZED_KEY_ISO_PATH" "$VERIFY_AUTHORIZED_KEY_HOST_FILE"
+  run_maybe_quiet xorriso -osirrox on -indev "$AUTO_ISO" -extract "$PARTMAN_EARLY_ISO_PATH" "$VERIFY_PARTMAN_EARLY_HOST_FILE"
+  run_maybe_quiet xorriso -osirrox on -indev "$AUTO_ISO" -extract "$PRESEED_LATE_ISO_PATH" "$VERIFY_PRESEED_LATE_HOST_FILE"
+  run_maybe_quiet xorriso -osirrox on -indev "$AUTO_ISO" -extract "$INSTALLER_COMMON_ISO_PATH" "$VERIFY_INSTALLER_COMMON_HOST_FILE"
 }
 
 # ---- Content Verification ----

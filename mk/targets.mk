@@ -44,7 +44,11 @@ _check:
 _image:
 	@echo creating image $(DISK)
 	@rm -f "$(DISK)"
-	@$(QEMU_IMG) create -f qcow2 "$(DISK)" "$(DISK_SIZE)" >/dev/null 2>&1
+	@if [ "$(QUIET)" = "1" ]; then \
+		$(QEMU_IMG) create -f qcow2 "$(DISK)" "$(DISK_SIZE)" >/dev/null 2>&1; \
+	else \
+		$(QEMU_IMG) create -f qcow2 "$(DISK)" "$(DISK_SIZE)"; \
+	fi
 	@echo "image creation finished."
 
 _iso: $(AUTO_ISO)
@@ -79,9 +83,10 @@ $(AUTO_ISO): $(ISO) $(PRESEED) $(PARTMAN_EARLY_SCRIPT) $(PRESEED_LATE_SCRIPT) $(
 	SSH_PUBLIC_KEY="$(SSH_PUBLIC_KEY)" \
 	SSH_PUBLIC_KEY_FILES="$(SSH_PUBLIC_KEY_FILES)" \
 	SSH_PUBLIC_KEY_GLOB="$(SSH_PUBLIC_KEY_GLOB)" \
-	AUTHORIZED_KEY_HOST_FILE="$(AUTHORIZED_KEY_HOST_FILE)" \
-	AUTHORIZED_KEY_ISO_PATH="$(AUTHORIZED_KEY_ISO_PATH)" \
-	/bin/sh "$(BUILD_AUTO_ISO_SCRIPT)"
+		AUTHORIZED_KEY_HOST_FILE="$(AUTHORIZED_KEY_HOST_FILE)" \
+		AUTHORIZED_KEY_ISO_PATH="$(AUTHORIZED_KEY_ISO_PATH)" \
+		QUIET="$(QUIET)" \
+		/bin/sh "$(BUILD_AUTO_ISO_SCRIPT)"
 	@echo "created $(AUTO_ISO)"
 
 _verify-iso: _verify-iso-extract _verify-iso-preseed _verify-iso-grub _verify-iso-hooks _verify-iso-ssh
@@ -99,9 +104,10 @@ _verify-iso-extract: $(AUTO_ISO) $(VERIFY_AUTO_ISO_SCRIPT)
 	VERIFY_GRUB_HOST_FILE="$(VERIFY_GRUB_HOST_FILE)" \
 	VERIFY_AUTHORIZED_KEY_HOST_FILE="$(VERIFY_AUTHORIZED_KEY_HOST_FILE)" \
 	VERIFY_PARTMAN_EARLY_HOST_FILE="$(VERIFY_PARTMAN_EARLY_HOST_FILE)" \
-	VERIFY_PRESEED_LATE_HOST_FILE="$(VERIFY_PRESEED_LATE_HOST_FILE)" \
-	VERIFY_INSTALLER_COMMON_HOST_FILE="$(VERIFY_INSTALLER_COMMON_HOST_FILE)" \
-	/bin/sh "$(VERIFY_AUTO_ISO_SCRIPT)" extract
+		VERIFY_PRESEED_LATE_HOST_FILE="$(VERIFY_PRESEED_LATE_HOST_FILE)" \
+		VERIFY_INSTALLER_COMMON_HOST_FILE="$(VERIFY_INSTALLER_COMMON_HOST_FILE)" \
+		QUIET="$(QUIET)" \
+		/bin/sh "$(VERIFY_AUTO_ISO_SCRIPT)" extract
 
 _verify-iso-preseed: _verify-iso-extract $(VERIFY_AUTO_ISO_SCRIPT)
 	@AUTO_ISO="$(AUTO_ISO)" \

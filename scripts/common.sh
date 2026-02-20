@@ -1,11 +1,29 @@
 #!/bin/sh
 
+# Shared paths used by installer hooks.
+AUTHORIZED_KEY_SOURCE_PATH=/cdrom/authorized_key.pub
+AUTHORIZED_KEYS_TARGET_PATH=/target/home/installer/.ssh/authorized_keys
+SUDOERS_DROPIN_PATH=/etc/sudoers.d/90-installer-nopasswd
+SSHD_DROPIN_PATH=/etc/ssh/sshd_config.d/90-installer-keyonly.conf
+
+info() {
+  printf '%s\n' "INFO: $*" >&2
+}
+
+warn() {
+  printf '%s\n' "WARNING: $*" >&2
+}
+
+die() {
+  printf '%s\n' "ERROR: $*" >&2
+  exit 1
+}
+
 require_env() {
   var_name=$1
   eval "value=\${$var_name-}"
   if [ -z "$value" ]; then
-    echo "missing required env var: $var_name" >&2
-    exit 1
+    die "missing required env var: $var_name"
   fi
 }
 
@@ -23,10 +41,6 @@ log_line() {
   log_file="$1"
   shift
   printf '%s\n' "$*" >> "$log_file" 2>/dev/null || true
-}
-
-warn() {
-  printf '%s\n' "WARNING: $*" >&2
 }
 
 run_in_target() {

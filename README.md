@@ -1,57 +1,92 @@
-# Debian Unattended Install (QEMU + UEFI + Btrfs Snapshots)
+# Debian Unattended Install
 
-This project builds an unattended Debian installer ISO and installs Debian in QEMU with UEFI boot.
+Build and run an unattended Debian installer in QEMU with UEFI, Btrfs root, and Snapper.
 
-Supported guest architectures:
-- `amd64` (default on Linux)
-- `arm64` (default on macOS, or use `ARCH=arm64`)
+## Supported Guest Architectures
+- `amd64` (default on Linux hosts)
+- `arm64` (default on macOS hosts)
 
-The unattended install config sets up:
-- GPT partitioning with an EFI system partition
-- Btrfs root filesystem
-- Snapper configuration with timeline/cleanup timers
+## Required Dependencies
+Executables required by public target:
 
-## Files
-- `Makefile`: entrypoint that includes modular build logic from `mk/*.mk`
-- `mk/common.mk`, `mk/arch.mk`, `mk/os.mk`, `mk/test.mk`, `mk/targets.mk`: split configuration and targets by concern
-- `preseed.cfg`: Debian preseed answers + `late_command` for Snapper setup
+| Target | Required executables | Conditional executables |
+| --- | --- | --- |
+| `make clean` | none | none |
+| `make full-clean` | none | none |
+| `make build` | `qemu-img`, `xorriso`, `rg` | `curl` or `wget` (only when ISO is missing locally) |
+| `make install` | `qemu-system-x86_64` or `qemu-system-aarch64`, `qemu-img`, `xorriso`, `rg` | `curl` or `wget` (only when ISO is missing locally) |
+| `make start` | `qemu-system-x86_64` or `qemu-system-aarch64` | none |
+| `make test` | `qemu-system-x86_64` or `qemu-system-aarch64`, `qemu-img`, `xorriso`, `rg` | Linux only: `timeout` |
 
-## Prerequisites
-Install these tools:
-- QEMU (`qemu-system-x86_64` for `amd64`, `qemu-system-aarch64` for `arm64`)
-- `qemu-img`
-- `xorriso`
-- `ripgrep` (`rg`)
-
-You also need UEFI firmware files:
+Required firmware files:
 - `amd64`: OVMF (`OVMF_CODE.fd`, `OVMF_VARS.fd`)
 - `arm64`: AAVMF/EDK2 (`edk2-aarch64-code.fd`, `edk2-aarch64-vars.fd`)
 
-The `Makefile` auto-detects common firmware paths on macOS/Homebrew and Linux. If detection fails, set:
-- `EFI_CODE=/path/to/...`
-- `EFI_VARS_TEMPLATE=/path/to/...`
-
-## Quick Start (Linux amd64)
-1. Put Debian netinst ISO in repo root: `debian-13.3.0-amd64-netinst.iso`.
-2. Build unattended installer ISO assets:
+Install suggestions (recommended superset for all targets):
 
 ```bash
-make build
+# macOS (Homebrew)
+brew install qemu xorriso ripgrep curl wget
 ```
 
-3. Boot the installed VM:
+```bash
+# Debian/Ubuntu (example)
+sudo apt update
+sudo apt install -y qemu-system-x86 qemu-system-arm qemu-utils ovmf qemu-efi-aarch64 xorriso ripgrep curl wget
+```
 
 ```bash
+# Fedora (example)
+sudo dnf install -y qemu-system-x86 qemu-system-aarch64 qemu-img edk2-ovmf edk2-aarch64 xorriso ripgrep curl wget
+```
+
+```bash
+# Arch Linux (example)
+sudo pacman -S --needed qemu-base edk2-ovmf xorriso ripgrep curl wget
+```
+
+Package names can vary by distro/release.
+
+The Makefile auto-detects common firmware paths. If detection fails, set:
+- `EFI_CODE=/path/to/firmware-code.fd`
+- `EFI_VARS_TEMPLATE=/path/to/firmware-vars.fd`
+
+## Cheatsheet
+Common command sets by host/guest architecture.
+
+### Linux host -> amd64 guest (default)
+```bash
+make build
+make install
 make start
 ```
 
-If the ISO is missing locally, `make build`/`make install`/`make test` will download it automatically.
-
-## Run arm64 Instead
-
+### Linux host -> arm64 guest
 ```bash
 make build ARCH=arm64 ISO=debian-13.3.0-arm64-netinst.iso
+make install ARCH=arm64 ISO=debian-13.3.0-arm64-netinst.iso
 make start ARCH=arm64
+```
+
+### macOS host -> arm64 guest (default)
+```bash
+make build
+make install
+make start
+```
+
+### macOS host -> amd64 guest
+```bash
+make build ARCH=amd64 ISO=debian-13.3.0-amd64-netinst.iso
+make install ARCH=amd64 ISO=debian-13.3.0-amd64-netinst.iso
+make start ARCH=amd64
+```
+
+### Test unattended install (any host)
+```bash
+make test
+make test ARCH=amd64
+make test ARCH=arm64 ISO=debian-13.3.0-arm64-netinst.iso
 ```
 
 ## Common Targets
@@ -59,65 +94,93 @@ make start ARCH=arm64
 - `make full-clean`: remove build artifacts and downloaded installer ISOs
 - `make build`: create disk image and unattended installer ISO assets
 - `make install`: run unattended installer in a QEMU window (exits on first reboot)
-- `make test`: CI/local verification that unattended install completes; validates serial output marker and stores log in `.build/test`
+- `make test`: CI/local verification that unattended install completes and records log in `.build/test`
 - `make start`: boot installed OS from disk
 
-The unattended ISO build target is internal (`_iso`) and is invoked automatically by `build`/`install`/`test`.
 Prerequisite checks run automatically for `build`, `install`, `test`, and `start`.
 
-## Important Variables
-Override at runtime as needed:
+## Defaults
+### Build/Runtime Defaults
+- `ARCH`: `amd64` on Linux, `arm64` on macOS
+- `DEBIAN_VERSION`: `13.3.0`
+- `ISO`: `debian-$(DEBIAN_VERSION)-$(ARCH)-netinst.iso`
+- `AUTO_ISO_INSTALL`: `debian-auto-install-$(ARCH).iso`
+- `AUTO_ISO_TEST`: `debian-auto-test-$(ARCH).iso`
+- `DISK`: `os-$(ARCH).qcow2`
+- `DISK_SIZE`: `20G`
+- `RAM_MB`: `2048`
+- `CPUS`: `4`
+- `EFI_VARS`: `efi-vars-$(ARCH).fd`
+- `TEST_TIMEOUT`: `45m` (Linux only)
+
+### Guest Access Defaults
+- installer user: `installer`
+- console password: `installer`
+- SSH password auth: disabled (`PasswordAuthentication no`)
+- SSH root login: disabled (`PermitRootLogin no`)
+- sudo: passwordless for `installer` (`NOPASSWD:ALL`)
+- default key discovery on host: `~/.ssh/id_*.pub`
+- guest authorized keys path: `/home/installer/.ssh/authorized_keys`
+
+## Advanced Overrides
+Use overrides at runtime:
 
 ```bash
-make build ARCH=amd64 ISO=debian-13.3.0-amd64-netinst.iso DISK=myvm.qcow2 DISK_SIZE=40G
+make build ARCH=amd64 ISO=debian-13.3.0-amd64-netinst.iso DISK=myvm.qcow2 DISK_SIZE=40G RAM_MB=4096 CPUS=8
 ```
 
-Main variables:
-- `ARCH` (`amd64` or `arm64`)
-- `ISO` (default depends on `ARCH`)
-- `ISO_MIRROR` (default `https://www.mirrorservice.org/sites/cdimage.debian.org/debian-cd/current`)
-- `ISO_URL` (full download URL, auto-computed from mirror/arch/version)
-- `AUTO_ISO` (default `debian-auto-$(ARCH).iso`)
-- `AUTO_ISO_INSTALL` (default `debian-auto-install-$(ARCH).iso`)
-- `AUTO_ISO_TEST` (default `debian-auto-test-$(ARCH).iso`)
-- `DISK` (default `os-$(ARCH).qcow2`)
-- `EFI_VARS` (default `efi-vars-$(ARCH).fd`)
-- `DISK_SIZE` (default `20G`)
-- `RAM_MB` (default `2048`)
-- `CPUS` (default `4`)
-- `ACCEL` (`kvm`/`tcg` on Linux, `hvf` for macOS `arm64`, `tcg` otherwise)
-- `TEST_TIMEOUT` (default `45m`, used only on Linux in `make test`)
-- `TEST_LOG` (default `.build/test/install-$(ARCH).log`)
-- `TEST_TAIL_LINES` (default `80`, number of log lines shown initially when following test log)
-- `TEST_SUCCESS_REGEX` (default reboot completion pattern checked by `make test`)
-- `SSH_PUBLIC_KEY_GLOB` (default: `~/.ssh/id_*.pub`)
-- `SSH_PUBLIC_KEY_FILES` (default: all files matching `SSH_PUBLIC_KEY_GLOB`, sorted)
-- `SSH_PUBLIC_KEY_FILE` (legacy alias: first key from `SSH_PUBLIC_KEY_FILES`)
-- `SSH_PUBLIC_KEY` (optional inline override; if set, takes precedence over discovered files)
+### ISO Source
+- `DEBIAN_VERSION`
+- `ISO`
+- `ISO_FILENAME`
+- `ISO_MIRROR`
+- `ISO_URL`
 
-## What the Unattended Install Does
-From `preseed.cfg`:
-- creates user `installer` with password `installer` (console login)
-- auto-selects install target disk as the largest non-removable, non-USB disk
-- installs `openssh-server`, `btrfs-progs`, `snapper`
-- grants `installer` passwordless sudo (`NOPASSWD:ALL`)
-- creates a Btrfs root Snapper config (`root`)
-- enables `snapper-timeline.timer` and `snapper-cleanup.timer`
-- creates an initial snapshot (`Initial-install`)
+### VM and QEMU
+- `ARCH`
+- `QEMU`
+- `ACCEL`
+- `CPU_MODEL`
+- `DISK`
+- `DISK_SIZE`
+- `RAM_MB`
+- `CPUS`
+- `DISPLAY_ARGS`
+- `VIDEO_ARGS`
+- `NETWORK_ARGS`
+- `MONITOR_ARGS`
+- `INPUT_ARGS`
+
+### Firmware
+- `EFI_CODE`
+- `EFI_VARS_TEMPLATE`
+- `EFI_VARS`
+
+### Boot/Installer
+- `PRESEED`
+- `AUTO_ISO`
+- `AUTO_ISO_INSTALL`
+- `AUTO_ISO_TEST`
+- `GRUB_KERNEL_ARGS_COMMON`
+- `GRUB_KERNEL_ARGS_INSTALL`
+- `GRUB_KERNEL_ARGS_TEST`
+- `GRUB_KERNEL_ARGS`
+
+### SSH Key Injection
+- `SSH_PUBLIC_KEY_GLOB`
+- `SSH_PUBLIC_KEY_FILES`
+- `SSH_PUBLIC_KEY_FILE` (legacy alias)
+- `SSH_PUBLIC_KEY` (inline override; highest priority)
+
+### Test Controls
+- `TEST_TIMEOUT`
+- `TEST_LOG`
+- `TEST_TAIL_LINES`
+- `TEST_SUCCESS_REGEX`
+- `TIMEOUT`
 
 ## Notes
-- `make build` recreates the disk image file each run.
-- Partitioning is destructive on the selected target disk (new GPT + new root layout).
-- On real hardware, USB-attached installer media is excluded from target-disk auto-selection when possible.
-- `make install`/`make test` reset EFI vars each run for deterministic installer boot behavior.
-- `make install` runs in a QEMU window; serial/headless mode (`-display none -serial mon:stdio`) is used only by `make test`.
-- `make install` and `make test` now use separate unattended ISO profiles (`AUTO_ISO_INSTALL` and `AUTO_ISO_TEST`) while sharing the same base preseed and ISO build flow.
-- `make install` uses `GRUB_KERNEL_ARGS_INSTALL` (default `... console=tty0`) for windowed installer display.
-- `make test` uses `GRUB_KERNEL_ARGS_TEST` (default `... DEBIAN_FRONTEND=text console=tty0 console=$(SERIAL_CONSOLE),115200n8`) for serial-friendly CI/log assertions.
-- `arm64` uses `-device virtio-gpu-pci` by default for installer display output (override with `VIDEO_ARGS=...` if needed).
-- `make test` shows a live `tail -f` style view while writing the full installer log to `TEST_LOG`.
-- `make test` uses Linux `timeout` in CI; on macOS it runs without timeout to support local MacBook verification.
-- The unattended ISO embeds `/authorized_key.pub` built from host `~/.ssh/id_*.pub` keys by default; `preseed.cfg` installs it as `/home/installer/.ssh/authorized_keys` if non-empty.
-- SSH root login is explicitly disabled (`PermitRootLogin no`); use `installer` + sudo.
-- SSH password login is disabled (`PasswordAuthentication no`); SSH access is key-based.
-- Default networking is QEMU user networking (`virtio-net`).
+- Partitioning is destructive on the selected target disk.
+- `make install` and `make test` reset EFI vars each run for deterministic installer boot.
+- `make test` uses serial/headless mode and follows the install log.
+- If installer ISO is missing, `build`/`install`/`test` will download it automatically.

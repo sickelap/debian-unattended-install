@@ -11,6 +11,7 @@ assert_file_contains() {
   rg -q "$pattern" "$file_path"
 }
 
+# ---- Asset Extraction ----
 extract_assets() {
   require_env AUTO_ISO
   require_env ISO_WORKDIR
@@ -42,7 +43,8 @@ extract_assets() {
   xorriso -osirrox on -indev "$AUTO_ISO" -extract "$INSTALLER_COMMON_ISO_PATH" "$VERIFY_INSTALLER_COMMON_HOST_FILE" >/dev/null
 }
 
-check_preseed() {
+# ---- Content Verification ----
+verify_preseed() {
   require_env VERIFY_PRESEED_HOST_FILE
   assert_file_contains "$VERIFY_PRESEED_HOST_FILE" "partman/early_command string"
   assert_file_contains "$VERIFY_PRESEED_HOST_FILE" "/cdrom/installer-hooks/partman-early.sh"
@@ -50,7 +52,7 @@ check_preseed() {
   assert_file_contains "$VERIFY_PRESEED_HOST_FILE" "/cdrom/installer-hooks/preseed-late.sh"
 }
 
-check_grub() {
+verify_grub() {
   require_env VERIFY_GRUB_HOST_FILE
   assert_file_contains "$VERIFY_GRUB_HOST_FILE" '^set timeout_style=hidden$'
   assert_file_contains "$VERIFY_GRUB_HOST_FILE" '^set timeout=0$'
@@ -58,7 +60,7 @@ check_grub() {
   assert_file_contains "$VERIFY_GRUB_HOST_FILE" "preseed/file=/cdrom/preseed.cfg"
 }
 
-check_hooks() {
+verify_hooks() {
   require_env VERIFY_PARTMAN_EARLY_HOST_FILE
   require_env VERIFY_PRESEED_LATE_HOST_FILE
   require_env VERIFY_INSTALLER_COMMON_HOST_FILE
@@ -73,7 +75,7 @@ check_hooks() {
   test -s "$VERIFY_INSTALLER_COMMON_HOST_FILE"
 }
 
-check_ssh() {
+verify_ssh() {
   require_env VERIFY_AUTHORIZED_KEY_HOST_FILE
   test -f "$VERIFY_AUTHORIZED_KEY_HOST_FILE"
 }
@@ -84,16 +86,16 @@ case "$action" in
     extract_assets
     ;;
   check-preseed)
-    check_preseed
+    verify_preseed
     ;;
   check-grub)
-    check_grub
+    verify_grub
     ;;
   check-hooks)
-    check_hooks
+    verify_hooks
     ;;
   check-ssh)
-    check_ssh
+    verify_ssh
     ;;
   *)
     echo "usage: $0 <extract|check-preseed|check-grub|check-hooks|check-ssh>" >&2

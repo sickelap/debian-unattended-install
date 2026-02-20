@@ -32,34 +32,31 @@ install_ssh_key() {
     "$AUTHORIZED_KEYS_TARGET_PATH" || warn "continuing without SSH authorized_keys"
 }
 
-write_sudoers() {
-  # ---- Sudoers Drop-in ----
+write_access_dropins() {
+  # ---- Access Control Drop-ins ----
   run_in_target '
     exec >> /root/preseed-late.log 2>&1
     install -d -m 0755 /etc/sudoers.d
-    cat > /etc/sudoers.d/90-installer-nopasswd <<EOF
+    install -d -m 0755 /etc/ssh/sshd_config.d
+    write_dropin() {
+      path="$1"
+      mode="$2"
+      owner="$3"
+      cat > "$path"
+      chmod "$mode" "$path"
+      chown "$owner" "$path"
+    }
+    write_dropin /etc/sudoers.d/90-installer-nopasswd 440 root:root <<EOF
 installer ALL=(ALL:ALL) NOPASSWD:ALL
 EOF
-    chmod 440 /etc/sudoers.d/90-installer-nopasswd
-    chown root:root /etc/sudoers.d/90-installer-nopasswd
     visudo -cf /etc/sudoers.d/90-installer-nopasswd
-  '
-}
-
-write_sshd_dropin() {
-  # ---- SSH Daemon Drop-in ----
-  run_in_target '
-    exec >> /root/preseed-late.log 2>&1
-    install -d -m 0755 /etc/ssh/sshd_config.d
-    cat > /etc/ssh/sshd_config.d/90-installer-keyonly.conf <<EOF
+    write_dropin /etc/ssh/sshd_config.d/90-installer-keyonly.conf 644 root:root <<EOF
 PermitRootLogin no
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 ChallengeResponseAuthentication no
 PubkeyAuthentication yes
 EOF
-    chmod 644 /etc/ssh/sshd_config.d/90-installer-keyonly.conf
-    chown root:root /etc/ssh/sshd_config.d/90-installer-keyonly.conf
   '
 }
 
@@ -79,6 +76,5 @@ final_checks() {
 # ---- Execution Order ----
 setup_base_target_state
 install_ssh_key
-write_sudoers
-write_sshd_dropin
+write_access_dropins
 final_checks

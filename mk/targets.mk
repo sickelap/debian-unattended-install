@@ -42,11 +42,16 @@ $(AUTO_ISO): $(ISO) $(PRESEED)
 	@echo creating unattended iso $(AUTO_ISO)
 	@rm -rf "$(ISO_WORKDIR)"
 	@mkdir -p "$(ISO_WORKDIR)"
-	@if [ -n "$(SSH_PUBLIC_KEY_EFFECTIVE)" ]; then \
-		printf '%s\n' "$(SSH_PUBLIC_KEY_EFFECTIVE)" > "$(AUTHORIZED_KEY_HOST_FILE)"; \
+	@if [ -n "$(SSH_PUBLIC_KEY)" ]; then \
+		printf '%s\n' "$(SSH_PUBLIC_KEY)" > "$(AUTHORIZED_KEY_HOST_FILE)"; \
+	elif [ -n "$(strip $(SSH_PUBLIC_KEY_FILES))" ]; then \
+		: > "$(AUTHORIZED_KEY_HOST_FILE)"; \
+		for key_file in $(SSH_PUBLIC_KEY_FILES); do \
+			cat "$$key_file" >> "$(AUTHORIZED_KEY_HOST_FILE)"; \
+		done; \
 	else \
 		: > "$(AUTHORIZED_KEY_HOST_FILE)"; \
-		echo "WARNING: no SSH public key found (checked SSH_PUBLIC_KEY and $(SSH_PUBLIC_KEY_FILE)); proceeding without key-based SSH access."; \
+		echo "WARNING: no SSH public keys found (checked SSH_PUBLIC_KEY and $(SSH_PUBLIC_KEY_GLOB)); proceeding without key-based SSH access."; \
 	fi
 	@printf '%s\n' \
 		'set default=0' \

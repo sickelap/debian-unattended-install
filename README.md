@@ -95,6 +95,7 @@ Main variables:
 ## What the Unattended Install Does
 From `preseed.cfg`:
 - creates user `user` with password `debian`
+- auto-selects install target disk as the largest non-removable, non-USB disk
 - installs `openssh-server`, `btrfs-progs`, `snapper`
 - creates a Btrfs root Snapper config (`root`)
 - enables `snapper-timeline.timer` and `snapper-cleanup.timer`
@@ -102,6 +103,8 @@ From `preseed.cfg`:
 
 ## Notes
 - `make build` recreates the disk image file each run.
+- Partitioning is destructive on the selected target disk (new GPT + new root layout).
+- On real hardware, USB-attached installer media is excluded from target-disk auto-selection when possible.
 - `make install`/`make test` reset EFI vars each run for deterministic installer boot behavior.
 - `make install` runs in a QEMU window; serial/headless mode (`-display none -serial mon:stdio`) is used only by `make test`.
 - `make install` and `make test` now use separate unattended ISO profiles (`AUTO_ISO_INSTALL` and `AUTO_ISO_TEST`) while sharing the same base preseed and ISO build flow.

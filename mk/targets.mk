@@ -76,6 +76,9 @@ _verify-iso: $(AUTO_ISO)
 	@rg -q "in-target sh -euxc" "$(ISO_WORKDIR)/verify-preseed.cfg"
 	@rg -q "snapper --no-dbus -c root create-config /;" "$(ISO_WORKDIR)/verify-preseed.cfg"
 	@rg -q "list-configs \\| grep -Eq" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@rg -q "partman/early_command string" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@rg -q "debconf-set partman-auto/disk" "$(ISO_WORKDIR)/verify-preseed.cfg"
+	@rg -q "debconf-set grub-installer/bootdev" "$(ISO_WORKDIR)/verify-preseed.cfg"
 	@rg -q "^set timeout_style=hidden$$" "$(ISO_WORKDIR)/verify-grub.cfg"
 	@rg -q "^set timeout=0$$" "$(ISO_WORKDIR)/verify-grub.cfg"
 	@test "$$(rg -c "^menuentry " "$(ISO_WORKDIR)/verify-grub.cfg")" -eq 1

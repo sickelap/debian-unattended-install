@@ -6,6 +6,7 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 . "$script_dir/common.sh"
 
 setup_base_target_state() {
+  # ---- Base Target Setup ----
   run_in_target '
     exec > /root/preseed-late.log 2>&1
     command -v snapper
@@ -25,12 +26,14 @@ setup_base_target_state() {
 }
 
 install_ssh_key() {
+  # ---- Authorized Keys ----
   copy_authorized_key_if_present \
     "$AUTHORIZED_KEY_SOURCE_PATH" \
     "$AUTHORIZED_KEYS_TARGET_PATH" || warn "continuing without SSH authorized_keys"
 }
 
 write_sudoers() {
+  # ---- Sudoers Drop-in ----
   run_in_target '
     exec >> /root/preseed-late.log 2>&1
     install -d -m 0755 /etc/sudoers.d
@@ -44,6 +47,7 @@ EOF
 }
 
 write_sshd_dropin() {
+  # ---- SSH Daemon Drop-in ----
   run_in_target '
     exec >> /root/preseed-late.log 2>&1
     install -d -m 0755 /etc/ssh/sshd_config.d
@@ -60,6 +64,7 @@ EOF
 }
 
 final_checks() {
+  # ---- Final Validation ----
   run_in_target '
     exec >> /root/preseed-late.log 2>&1
     if [ -f /home/installer/.ssh/authorized_keys ]; then

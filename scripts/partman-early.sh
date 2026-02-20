@@ -5,8 +5,10 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 # shellcheck source=/dev/null
 . "$script_dir/common.sh"
 
+# ---- Logging Setup ----
 log="$(init_installer_log auto-disk-select.log)"
 
+# ---- Candidate Disk Discovery ----
 log_line "$log" "auto disk selection started"
 candidates=""
 for d in $(list-devices disk); do
@@ -31,6 +33,7 @@ for d in $(list-devices disk); do
   candidates="$candidates $d:$size"
 done
 
+# ---- Largest-Disk Selection ----
 target=""
 max_size=-1
 for entry in $candidates; do
@@ -47,6 +50,7 @@ if [ -z "$target" ]; then
   log_line "$log" "WARNING: no non-removable non-USB candidate; fallback to $target"
 fi
 
+# ---- Debconf Wiring ----
 log_line "$log" "selected target=$target size=$max_size"
 debconf-set partman-auto/disk "$target"
 debconf-set grub-installer/bootdev "$target"

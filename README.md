@@ -192,6 +192,14 @@ make build ARCH=amd64 ISO=debian-13.3.0-amd64-netinst.iso DISK=myvm.qcow2 DISK_S
 - These scripts are sourced from repo files under `scripts/` and mapped into the unattended ISO during `make build`.
 - Hook scripts are executed explicitly via `/bin/sh`, so execute permissions are not required.
 
+### Developer Map
+| Repo source | ISO path | Used by | Execution phase |
+| --- | --- | --- | --- |
+| `preseed.cfg` | `/preseed.cfg` | Debian installer | Installer boot/preseed |
+| `scripts/partman-early.sh` | `/installer-hooks/partman-early.sh` | `partman/early_command` | Pre-partitioning |
+| `scripts/preseed-late.sh` | `/installer-hooks/preseed-late.sh` | `preseed/late_command` | Post-install (late command) |
+| `scripts/common.sh` | `/installer-hooks/common.sh` | sourced by hook scripts | Helper functions only |
+
 ## Notes
 - Partitioning is destructive on the selected target disk.
 - `make install` and `make test` reset EFI vars each run for deterministic installer boot.

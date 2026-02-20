@@ -63,6 +63,7 @@ make start ARCH=arm64
 - `make start`: boot installed OS from disk
 
 The unattended ISO build target is internal (`_iso`) and is invoked automatically by `build`/`install`/`test`.
+Prerequisite checks run automatically for `build`, `install`, `test`, and `start`.
 
 ## Important Variables
 Override at runtime as needed:

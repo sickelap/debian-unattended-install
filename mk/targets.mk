@@ -1,9 +1,9 @@
-.PHONY: all clean full-clean build install test start
+.PHONY: all clean full-clean _precheck _precheck-tools _precheck-firmware _precheck-iso-download-tool build install test start
 
-all:
+all: _precheck
 	@echo "make <clean|full-clean|build|install|test|start>"
 
-build: _image _iso _verify-iso
+build: _precheck _image _iso _verify-iso
 
 clean:
 	@echo "removing build artifacts"
@@ -12,6 +12,27 @@ clean:
 full-clean: clean
 	@echo "removing downloaded installer artifacts"
 	@rm -f debian-*-netinst.iso
+
+_precheck: _precheck-tools _precheck-firmware _precheck-iso-download-tool
+	@echo "precheck passed: prerequisites available."
+
+_precheck-tools:
+	@command -v "$(QEMU)" >/dev/null 2>&1 || (echo "Missing required command: $(QEMU)."; exit 1)
+	@command -v "$(QEMU_IMG)" >/dev/null 2>&1 || (echo "Missing required command: $(QEMU_IMG)."; exit 1)
+	@command -v xorriso >/dev/null 2>&1 || (echo "Missing required command: xorriso."; exit 1)
+	@command -v rg >/dev/null 2>&1 || (echo "Missing required command: rg."; exit 1)
+
+_precheck-firmware:
+	@test -n "$(EFI_CODE)" && test -f "$(EFI_CODE)" || (echo "EFI code image not found for ARCH=$(ARCH). Set EFI_CODE=/path/to/$(EFI_CODE_HINT)"; exit 1)
+	@test -n "$(EFI_VARS_TEMPLATE)" && test -f "$(EFI_VARS_TEMPLATE)" || (echo "EFI vars template not found for ARCH=$(ARCH). Set EFI_VARS_TEMPLATE=/path/to/$(EFI_VARS_HINT)"; exit 1)
+
+_precheck-iso-download-tool:
+	@if [ ! -f "$(ISO)" ]; then \
+		if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then \
+			echo "ISO $(ISO) is missing and neither curl nor wget is available to download it."; \
+			exit 1; \
+		fi; \
+	fi
 
 _check:
 	@test -n "$(EFI_CODE)" && test -f "$(EFI_CODE)" || (echo "EFI code image not found for ARCH=$(ARCH). Set EFI_CODE=/path/to/$(EFI_CODE_HINT)"; exit 1)
@@ -112,10 +133,10 @@ install: INPUT_ARGS=$(INTERACTIVE_INPUT_ARGS)
 install: AUTO_ISO=$(AUTO_ISO_INSTALL)
 install: CDROM=$(AUTO_ISO)
 install: GRUB_KERNEL_ARGS=$(GRUB_KERNEL_ARGS_INSTALL)
-install: _install
+install: _precheck _install
 
 start: INPUT_ARGS=$(INTERACTIVE_INPUT_ARGS)
-start: _check _efi-vars
+start: _precheck _check _efi-vars
 	@echo booting installed os from $(DISK) with EFI
 	@$(QEMU) \
 		$(QEMU_COMMON_ARGS) \

@@ -7,7 +7,7 @@ TEST_EFI_VARS ?= $(TEST_LOG_DIR)/efi-vars-$(ARCH).fd
 TEST_TAIL_LINES ?= 80
 TEST_SUCCESS_REGEX ?= reboot: (Restarting system|Power down|System halted)
 
-test:
+test: _precheck
 	@mkdir -p "$(TEST_LOG_DIR)"
 	@echo "running unattended install test (tailing $(TEST_LOG))"
 	@bash -o pipefail -c '\

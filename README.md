@@ -96,7 +96,7 @@ Main variables:
 
 ## What the Unattended Install Does
 From `preseed.cfg`:
-- creates user `installer` with no usable password (SSH key auth)
+- creates user `installer` with password `installer` (console login)
 - auto-selects install target disk as the largest non-removable, non-USB disk
 - installs `openssh-server`, `btrfs-progs`, `snapper`
 - grants `installer` passwordless sudo (`NOPASSWD:ALL`)
@@ -118,4 +118,5 @@ From `preseed.cfg`:
 - `make test` uses Linux `timeout` in CI; on macOS it runs without timeout to support local MacBook verification.
 - The unattended ISO embeds `/authorized_key.pub` built from host `~/.ssh/id_*.pub` keys by default; `preseed.cfg` installs it as `/home/installer/.ssh/authorized_keys` if non-empty.
 - SSH root login is explicitly disabled (`PermitRootLogin no`); use `installer` + sudo.
+- SSH password login is disabled (`PasswordAuthentication no`); SSH access is key-based.
 - Default networking is QEMU user networking (`virtio-net`).

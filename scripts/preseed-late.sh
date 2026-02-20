@@ -5,52 +5,75 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 # shellcheck source=/dev/null
 . "$script_dir/common.sh"
 
-# Run base post-install setup inside the target system.
-run_in_target '
-  exec > /root/preseed-late.log 2>&1
-  command -v snapper
-  command -v btrfs
-  command -v systemctl
-  test "$(findmnt -n -o FSTYPE /)" = "btrfs"
-  snapper --no-dbus -c root create-config /
-  systemctl enable snapper-timeline.timer
-  systemctl enable snapper-cleanup.timer
-  usermod -aG sudo installer
-  mkdir -p /home/installer/.ssh
-  chmod 700 /home/installer/.ssh
-  chown installer:installer /home/installer/.ssh
-  snapper --no-dbus -c root create --description Initial-install
-  snapper --no-dbus list-configs | grep -Eq "^root[[:space:]]"
-'
+setup_base_target_state() {
+  run_in_target '
+    exec > /root/preseed-late.log 2>&1
+    command -v snapper
+    command -v btrfs
+    command -v systemctl
+    test "$(findmnt -n -o FSTYPE /)" = "btrfs"
+    snapper --no-dbus -c root create-config /
+    systemctl enable snapper-timeline.timer
+    systemctl enable snapper-cleanup.timer
+    usermod -aG sudo installer
+    mkdir -p /home/installer/.ssh
+    chmod 700 /home/installer/.ssh
+    chown installer:installer /home/installer/.ssh
+    snapper --no-dbus -c root create --description Initial-install
+    snapper --no-dbus list-configs | grep -Eq "^root[[:space:]]"
+  '
+}
 
-copy_authorized_key_if_present /cdrom/authorized_key.pub /target/home/installer/.ssh/authorized_keys || true
+install_ssh_key() {
+  copy_authorized_key_if_present \
+    "$AUTHORIZED_KEY_SOURCE_PATH" \
+    "$AUTHORIZED_KEYS_TARGET_PATH" || warn "continuing without SSH authorized_keys"
+}
 
-# Create configuration files and apply ownership, modes, and validations in the target system.
-run_in_target '
-  exec >> /root/preseed-late.log 2>&1
-  install -d -m 0755 /etc/sudoers.d /etc/ssh/sshd_config.d
-
-  cat > /etc/sudoers.d/90-installer-nopasswd <<EOF
+write_sudoers() {
+  run_in_target '
+    exec >> /root/preseed-late.log 2>&1
+    install -d -m 0755 /etc/sudoers.d
+    cat > /etc/sudoers.d/90-installer-nopasswd <<EOF
 installer ALL=(ALL:ALL) NOPASSWD:ALL
 EOF
-  chmod 440 /etc/sudoers.d/90-installer-nopasswd
-  chown root:root /etc/sudoers.d/90-installer-nopasswd
-  visudo -cf /etc/sudoers.d/90-installer-nopasswd
+    chmod 440 /etc/sudoers.d/90-installer-nopasswd
+    chown root:root /etc/sudoers.d/90-installer-nopasswd
+    visudo -cf /etc/sudoers.d/90-installer-nopasswd
+  '
+}
 
-  cat > /etc/ssh/sshd_config.d/90-installer-keyonly.conf <<EOF
+write_sshd_dropin() {
+  run_in_target '
+    exec >> /root/preseed-late.log 2>&1
+    install -d -m 0755 /etc/ssh/sshd_config.d
+    cat > /etc/ssh/sshd_config.d/90-installer-keyonly.conf <<EOF
 PermitRootLogin no
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 ChallengeResponseAuthentication no
 PubkeyAuthentication yes
 EOF
-  chmod 644 /etc/ssh/sshd_config.d/90-installer-keyonly.conf
-  chown root:root /etc/ssh/sshd_config.d/90-installer-keyonly.conf
+    chmod 644 /etc/ssh/sshd_config.d/90-installer-keyonly.conf
+    chown root:root /etc/ssh/sshd_config.d/90-installer-keyonly.conf
+  '
+}
 
-  if [ -f /home/installer/.ssh/authorized_keys ]; then
-    chmod 600 /home/installer/.ssh/authorized_keys
-    chown installer:installer /home/installer/.ssh/authorized_keys
-  fi
+final_checks() {
+  run_in_target '
+    exec >> /root/preseed-late.log 2>&1
+    if [ -f /home/installer/.ssh/authorized_keys ]; then
+      chmod 600 /home/installer/.ssh/authorized_keys
+      chown installer:installer /home/installer/.ssh/authorized_keys
+    fi
 
-  sshd -t || true
-'
+    sshd -t || true
+  '
+}
+
+# ---- Execution Order ----
+setup_base_target_state
+install_ssh_key
+write_sudoers
+write_sshd_dropin
+final_checks

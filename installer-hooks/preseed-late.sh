@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eu
+set -eux
 
 # Run base post-install setup inside the target system.
 in-target sh -euxc '

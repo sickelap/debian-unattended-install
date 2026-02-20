@@ -1,5 +1,5 @@
 #!/bin/sh
-set -eu
+set -eux
 
 mkdir -p /var/log/installer 2>/dev/null || true
 log=/var/log/installer/auto-disk-select.log

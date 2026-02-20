@@ -22,11 +22,13 @@ ISO ?= $(ISO_FILENAME)
 
 # Installer Assets
 PRESEED ?= preseed.cfg
-INSTALLER_HOOKS_DIR ?= installer-hooks
+INSTALLER_HOOKS_DIR ?= scripts
 PARTMAN_EARLY_SCRIPT ?= $(INSTALLER_HOOKS_DIR)/partman-early.sh
 PRESEED_LATE_SCRIPT ?= $(INSTALLER_HOOKS_DIR)/preseed-late.sh
+INSTALLER_COMMON_SCRIPT ?= $(INSTALLER_HOOKS_DIR)/common.sh
 PARTMAN_EARLY_ISO_PATH ?= /installer-hooks/partman-early.sh
 PRESEED_LATE_ISO_PATH ?= /installer-hooks/preseed-late.sh
+INSTALLER_COMMON_ISO_PATH ?= /installer-hooks/common.sh
 ISO_WORKDIR ?= .build/autoiso-$(ARCH)
 SCRIPTS_DIR ?= scripts
 BUILD_AUTO_ISO_SCRIPT ?= $(SCRIPTS_DIR)/build_auto_iso.sh
@@ -36,6 +38,7 @@ VERIFY_GRUB_HOST_FILE ?= $(ISO_WORKDIR)/verify-grub.cfg
 VERIFY_AUTHORIZED_KEY_HOST_FILE ?= $(ISO_WORKDIR)/verify-authorized_key.pub
 VERIFY_PARTMAN_EARLY_HOST_FILE ?= $(ISO_WORKDIR)/verify-partman-early.sh
 VERIFY_PRESEED_LATE_HOST_FILE ?= $(ISO_WORKDIR)/verify-preseed-late.sh
+VERIFY_INSTALLER_COMMON_HOST_FILE ?= $(ISO_WORKDIR)/verify-installer-common.sh
 
 # Boot/Installer
 AUTO_ISO_INSTALL ?= debian-auto-install-$(ARCH).iso

@@ -1,14 +1,9 @@
 #!/bin/sh
 set -eu
 
-require_env() {
-  var_name=$1
-  eval "value=\${$var_name-}"
-  if [ -z "$value" ]; then
-    echo "missing required env var: $var_name" >&2
-    exit 1
-  fi
-}
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+# shellcheck source=/dev/null
+. "$script_dir/common.sh"
 
 assert_file_contains() {
   file_path=$1
@@ -22,11 +17,13 @@ extract_assets() {
   require_env AUTHORIZED_KEY_ISO_PATH
   require_env PARTMAN_EARLY_ISO_PATH
   require_env PRESEED_LATE_ISO_PATH
+  require_env INSTALLER_COMMON_ISO_PATH
   require_env VERIFY_PRESEED_HOST_FILE
   require_env VERIFY_GRUB_HOST_FILE
   require_env VERIFY_AUTHORIZED_KEY_HOST_FILE
   require_env VERIFY_PARTMAN_EARLY_HOST_FILE
   require_env VERIFY_PRESEED_LATE_HOST_FILE
+  require_env VERIFY_INSTALLER_COMMON_HOST_FILE
 
   mkdir -p "$ISO_WORKDIR"
   rm -f \
@@ -34,13 +31,15 @@ extract_assets() {
     "$VERIFY_GRUB_HOST_FILE" \
     "$VERIFY_AUTHORIZED_KEY_HOST_FILE" \
     "$VERIFY_PARTMAN_EARLY_HOST_FILE" \
-    "$VERIFY_PRESEED_LATE_HOST_FILE"
+    "$VERIFY_PRESEED_LATE_HOST_FILE" \
+    "$VERIFY_INSTALLER_COMMON_HOST_FILE"
 
   xorriso -osirrox on -indev "$AUTO_ISO" -extract /preseed.cfg "$VERIFY_PRESEED_HOST_FILE" >/dev/null
   xorriso -osirrox on -indev "$AUTO_ISO" -extract /boot/grub/grub.cfg "$VERIFY_GRUB_HOST_FILE" >/dev/null
   xorriso -osirrox on -indev "$AUTO_ISO" -extract "$AUTHORIZED_KEY_ISO_PATH" "$VERIFY_AUTHORIZED_KEY_HOST_FILE" >/dev/null
   xorriso -osirrox on -indev "$AUTO_ISO" -extract "$PARTMAN_EARLY_ISO_PATH" "$VERIFY_PARTMAN_EARLY_HOST_FILE" >/dev/null
   xorriso -osirrox on -indev "$AUTO_ISO" -extract "$PRESEED_LATE_ISO_PATH" "$VERIFY_PRESEED_LATE_HOST_FILE" >/dev/null
+  xorriso -osirrox on -indev "$AUTO_ISO" -extract "$INSTALLER_COMMON_ISO_PATH" "$VERIFY_INSTALLER_COMMON_HOST_FILE" >/dev/null
 }
 
 check_preseed() {
@@ -62,12 +61,16 @@ check_grub() {
 check_hooks() {
   require_env VERIFY_PARTMAN_EARLY_HOST_FILE
   require_env VERIFY_PRESEED_LATE_HOST_FILE
+  require_env VERIFY_INSTALLER_COMMON_HOST_FILE
   assert_file_contains "$VERIFY_PARTMAN_EARLY_HOST_FILE" "debconf-set partman-auto/disk"
   assert_file_contains "$VERIFY_PARTMAN_EARLY_HOST_FILE" "debconf-set grub-installer/bootdev"
   assert_file_contains "$VERIFY_PRESEED_LATE_HOST_FILE" "snapper --no-dbus -c root create-config /"
   assert_file_contains "$VERIFY_PRESEED_LATE_HOST_FILE" "list-configs \\| grep -Eq"
+  assert_file_contains "$VERIFY_INSTALLER_COMMON_HOST_FILE" "run_in_target"
+  assert_file_contains "$VERIFY_INSTALLER_COMMON_HOST_FILE" "copy_authorized_key_if_present"
   test -s "$VERIFY_PARTMAN_EARLY_HOST_FILE"
   test -s "$VERIFY_PRESEED_LATE_HOST_FILE"
+  test -s "$VERIFY_INSTALLER_COMMON_HOST_FILE"
 }
 
 check_ssh() {

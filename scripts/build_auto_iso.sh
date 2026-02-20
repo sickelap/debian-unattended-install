@@ -1,14 +1,9 @@
 #!/bin/sh
 set -eu
 
-require_env() {
-  var_name=$1
-  eval "value=\${$var_name-}"
-  if [ -z "$value" ]; then
-    echo "missing required env var: $var_name" >&2
-    exit 1
-  fi
-}
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+# shellcheck source=/dev/null
+. "$script_dir/common.sh"
 
 require_env ISO
 require_env AUTO_ISO
@@ -17,6 +12,8 @@ require_env PARTMAN_EARLY_SCRIPT
 require_env PARTMAN_EARLY_ISO_PATH
 require_env PRESEED_LATE_SCRIPT
 require_env PRESEED_LATE_ISO_PATH
+require_env INSTALLER_COMMON_SCRIPT
+require_env INSTALLER_COMMON_ISO_PATH
 require_env ISO_WORKDIR
 require_env GRUB_INSTALL_DIR
 require_env GRUB_KERNEL_ARGS
@@ -57,5 +54,6 @@ xorriso -indev "$ISO" -outdev "$AUTO_ISO" \
   -map "$PRESEED" /preseed.cfg \
   -map "$PARTMAN_EARLY_SCRIPT" "$PARTMAN_EARLY_ISO_PATH" \
   -map "$PRESEED_LATE_SCRIPT" "$PRESEED_LATE_ISO_PATH" \
+  -map "$INSTALLER_COMMON_SCRIPT" "$INSTALLER_COMMON_ISO_PATH" \
   -map "$AUTHORIZED_KEY_HOST_FILE" "$AUTHORIZED_KEY_ISO_PATH" \
   -map "$ISO_WORKDIR/grub.cfg.auto" /boot/grub/grub.cfg >/dev/null

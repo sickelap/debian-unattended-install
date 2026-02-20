@@ -1,8 +1,12 @@
 #!/bin/sh
 set -eux
 
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+# shellcheck source=/dev/null
+. "$script_dir/common.sh"
+
 # Run base post-install setup inside the target system.
-in-target sh -euxc '
+run_in_target '
   exec > /root/preseed-late.log 2>&1
   command -v snapper
   command -v btrfs
@@ -19,14 +23,10 @@ in-target sh -euxc '
   snapper --no-dbus list-configs | grep -Eq "^root[[:space:]]"
 '
 
-if [ -s /cdrom/authorized_key.pub ]; then
-  cp /cdrom/authorized_key.pub /target/home/installer/.ssh/authorized_keys
-else
-  echo "WARNING: /cdrom/authorized_key.pub missing or empty; skipping SSH key install"
-fi
+copy_authorized_key_if_present /cdrom/authorized_key.pub /target/home/installer/.ssh/authorized_keys || true
 
 # Create configuration files and apply ownership, modes, and validations in the target system.
-in-target sh -euxc '
+run_in_target '
   exec >> /root/preseed-late.log 2>&1
   install -d -m 0755 /etc/sudoers.d /etc/ssh/sshd_config.d
 

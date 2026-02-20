@@ -17,7 +17,6 @@ _precheck: _precheck-tools _precheck-firmware _precheck-iso-download-tool
 	@echo "precheck passed: prerequisites available."
 
 _precheck-tools:
-	@command -v "$(QEMU)" >/dev/null 2>&1 || (echo "Missing required command: $(QEMU)."; exit 1)
 	@command -v "$(QEMU_IMG)" >/dev/null 2>&1 || (echo "Missing required command: $(QEMU_IMG)."; exit 1)
 	@command -v xorriso >/dev/null 2>&1 || (echo "Missing required command: xorriso."; exit 1)
 	@command -v rg >/dev/null 2>&1 || (echo "Missing required command: rg."; exit 1)
@@ -35,6 +34,7 @@ _precheck-iso-download-tool:
 	fi
 
 _check:
+	@command -v "$(QEMU)" >/dev/null 2>&1 || (echo "Missing required command: $(QEMU)."; exit 1)
 	@test -n "$(EFI_CODE)" && test -f "$(EFI_CODE)" || (echo "EFI code image not found for ARCH=$(ARCH). Set EFI_CODE=/path/to/$(EFI_CODE_HINT)"; exit 1)
 	@test -n "$(EFI_VARS_TEMPLATE)" && test -f "$(EFI_VARS_TEMPLATE)" || (echo "EFI vars template not found for ARCH=$(ARCH). Set EFI_VARS_TEMPLATE=/path/to/$(EFI_VARS_HINT)"; exit 1)
 	@test -f "$(CDROM)" || (echo "CDROM/ISO not found: $(CDROM)"; exit 1)
@@ -136,7 +136,7 @@ install: GRUB_KERNEL_ARGS=$(GRUB_KERNEL_ARGS_INSTALL)
 install: _precheck _install
 
 start: INPUT_ARGS=$(INTERACTIVE_INPUT_ARGS)
-start: _precheck _check _efi-vars
+start: _check _efi-vars
 	@echo booting installed os from $(DISK) with EFI
 	@$(QEMU) \
 		$(QEMU_COMMON_ARGS) \

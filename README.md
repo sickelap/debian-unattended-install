@@ -96,9 +96,10 @@ Main variables:
 
 ## What the Unattended Install Does
 From `preseed.cfg`:
-- creates user `user` with password `debian`
+- creates user `installer` with no usable password (SSH key auth)
 - auto-selects install target disk as the largest non-removable, non-USB disk
 - installs `openssh-server`, `btrfs-progs`, `snapper`
+- grants `installer` passwordless sudo (`NOPASSWD:ALL`)
 - creates a Btrfs root Snapper config (`root`)
 - enables `snapper-timeline.timer` and `snapper-cleanup.timer`
 - creates an initial snapshot (`Initial-install`)
@@ -115,5 +116,6 @@ From `preseed.cfg`:
 - `arm64` uses `-device virtio-gpu-pci` by default for installer display output (override with `VIDEO_ARGS=...` if needed).
 - `make test` shows a live `tail -f` style view while writing the full installer log to `TEST_LOG`.
 - `make test` uses Linux `timeout` in CI; on macOS it runs without timeout to support local MacBook verification.
-- The unattended ISO embeds `/authorized_key.pub` built from host `~/.ssh/id_*.pub` keys by default; `preseed.cfg` installs it as `/home/user/.ssh/authorized_keys` if non-empty.
+- The unattended ISO embeds `/authorized_key.pub` built from host `~/.ssh/id_*.pub` keys by default; `preseed.cfg` installs it as `/home/installer/.ssh/authorized_keys` if non-empty.
+- SSH root login is explicitly disabled (`PermitRootLogin no`); use `installer` + sudo.
 - Default networking is QEMU user networking (`virtio-net`).

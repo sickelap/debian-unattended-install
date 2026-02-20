@@ -4,10 +4,12 @@ all: _precheck
 	@echo "make <clean|full-clean|build|install|test|start>"
 
 build: _precheck _image _iso _verify-iso
+	@echo "build finished."
 
 clean:
 	@echo "removing build artifacts"
 	@rm -rf *.qcow2 efi-vars-*.fd debian-auto-*.iso debian-auto-install-*.iso debian-auto-test-*.iso .build
+	@echo "clean finished."
 
 full-clean: clean
 	@echo "removing downloaded installer artifacts"
@@ -42,7 +44,8 @@ _check:
 _image:
 	@echo creating image $(DISK)
 	@rm -f "$(DISK)"
-	@$(QEMU_IMG) create -f qcow2 "$(DISK)" "$(DISK_SIZE)"
+	@$(QEMU_IMG) create -f qcow2 "$(DISK)" "$(DISK_SIZE)" >/dev/null 2>&1
+	@echo "image creation finished."
 
 _iso: $(AUTO_ISO)
 
@@ -144,6 +147,7 @@ install: AUTO_ISO=$(AUTO_ISO_INSTALL)
 install: CDROM=$(AUTO_ISO)
 install: GRUB_KERNEL_ARGS=$(GRUB_KERNEL_ARGS_INSTALL)
 install: _precheck _install
+	@echo "install finished."
 
 start: INPUT_ARGS=$(INTERACTIVE_INPUT_ARGS)
 start: _check _efi-vars

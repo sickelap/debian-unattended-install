@@ -56,4 +56,4 @@ xorriso -indev "$ISO" -outdev "$AUTO_ISO" \
   -map "$PRESEED_LATE_SCRIPT" "$PRESEED_LATE_ISO_PATH" \
   -map "$INSTALLER_COMMON_SCRIPT" "$INSTALLER_COMMON_ISO_PATH" \
   -map "$AUTHORIZED_KEY_HOST_FILE" "$AUTHORIZED_KEY_ISO_PATH" \
-  -map "$ISO_WORKDIR/grub.cfg.auto" /boot/grub/grub.cfg >/dev/null
+  -map "$ISO_WORKDIR/grub.cfg.auto" /boot/grub/grub.cfg >/dev/null 2>&1

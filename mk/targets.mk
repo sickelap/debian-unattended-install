@@ -1,4 +1,4 @@
-.PHONY: all clean full-clean _precheck _precheck-tools _precheck-firmware _precheck-iso-download-tool build install test start
+.PHONY: all clean full-clean _precheck _precheck-tools _precheck-firmware _precheck-iso-download-tool build install test start _verify-iso _verify-iso-extract _verify-iso-preseed _verify-iso-grub _verify-iso-hooks _verify-iso-ssh
 
 all: _precheck
 	@echo "make <clean|full-clean|build|install|test|start>"
@@ -59,66 +59,63 @@ $(ISO):
 		exit 1; \
 	fi
 
-$(AUTO_ISO): $(ISO) $(PRESEED) $(PARTMAN_EARLY_SCRIPT) $(PRESEED_LATE_SCRIPT)
-	@echo creating unattended iso $(AUTO_ISO)
-	@rm -rf "$(ISO_WORKDIR)"
-	@mkdir -p "$(ISO_WORKDIR)"
-	@if [ -n "$(SSH_PUBLIC_KEY)" ]; then \
-		printf '%s\n' "$(SSH_PUBLIC_KEY)" > "$(AUTHORIZED_KEY_HOST_FILE)"; \
-	elif [ -n "$(strip $(SSH_PUBLIC_KEY_FILES))" ]; then \
-		: > "$(AUTHORIZED_KEY_HOST_FILE)"; \
-		for key_file in $(SSH_PUBLIC_KEY_FILES); do \
-			cat "$$key_file" >> "$(AUTHORIZED_KEY_HOST_FILE)"; \
-		done; \
-	else \
-		: > "$(AUTHORIZED_KEY_HOST_FILE)"; \
-		echo "WARNING: no SSH public keys found (checked SSH_PUBLIC_KEY and $(SSH_PUBLIC_KEY_GLOB)); proceeding without key-based SSH access."; \
-	fi
-	@printf '%s\n' \
-		'set default=0' \
-		'set timeout_style=hidden' \
-		'set timeout=0' \
-		'' \
-		'menuentry '\''Unattended install (Btrfs snapshots)'\'' {' \
-		'    linux /$(GRUB_INSTALL_DIR)/vmlinuz $(GRUB_KERNEL_ARGS) ---' \
-		'    initrd /$(GRUB_INSTALL_DIR)/initrd.gz' \
-		'}' \
-		'' \
-		> "$(ISO_WORKDIR)/grub.cfg.auto"
-	@rm -f "$(AUTO_ISO)"
-	@xorriso -indev "$(ISO)" -outdev "$(AUTO_ISO)" \
-		-boot_image any replay \
-		-map "$(PRESEED)" /preseed.cfg \
-		-map "$(PARTMAN_EARLY_SCRIPT)" "$(PARTMAN_EARLY_ISO_PATH)" \
-		-map "$(PRESEED_LATE_SCRIPT)" "$(PRESEED_LATE_ISO_PATH)" \
-		-map "$(AUTHORIZED_KEY_HOST_FILE)" "$(AUTHORIZED_KEY_ISO_PATH)" \
-		-map "$(ISO_WORKDIR)/grub.cfg.auto" /boot/grub/grub.cfg >/dev/null
-	@echo created $(AUTO_ISO)
+$(AUTO_ISO): $(ISO) $(PRESEED) $(PARTMAN_EARLY_SCRIPT) $(PRESEED_LATE_SCRIPT) $(BUILD_AUTO_ISO_SCRIPT)
+	@echo "==> creating unattended iso $(AUTO_ISO)"
+	@ISO="$(ISO)" \
+	AUTO_ISO="$(AUTO_ISO)" \
+	PRESEED="$(PRESEED)" \
+	PARTMAN_EARLY_SCRIPT="$(PARTMAN_EARLY_SCRIPT)" \
+	PARTMAN_EARLY_ISO_PATH="$(PARTMAN_EARLY_ISO_PATH)" \
+	PRESEED_LATE_SCRIPT="$(PRESEED_LATE_SCRIPT)" \
+	PRESEED_LATE_ISO_PATH="$(PRESEED_LATE_ISO_PATH)" \
+	ISO_WORKDIR="$(ISO_WORKDIR)" \
+	GRUB_INSTALL_DIR="$(GRUB_INSTALL_DIR)" \
+	GRUB_KERNEL_ARGS="$(GRUB_KERNEL_ARGS)" \
+	SSH_PUBLIC_KEY="$(SSH_PUBLIC_KEY)" \
+	SSH_PUBLIC_KEY_FILES="$(SSH_PUBLIC_KEY_FILES)" \
+	SSH_PUBLIC_KEY_GLOB="$(SSH_PUBLIC_KEY_GLOB)" \
+	AUTHORIZED_KEY_HOST_FILE="$(AUTHORIZED_KEY_HOST_FILE)" \
+	AUTHORIZED_KEY_ISO_PATH="$(AUTHORIZED_KEY_ISO_PATH)" \
+	/bin/sh "$(BUILD_AUTO_ISO_SCRIPT)"
+	@echo "created $(AUTO_ISO)"
 
-_verify-iso: $(AUTO_ISO)
-	@mkdir -p "$(ISO_WORKDIR)"
-	@rm -f "$(ISO_WORKDIR)/verify-preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg" "$(ISO_WORKDIR)/verify-authorized_key.pub" "$(ISO_WORKDIR)/verify-partman-early.sh" "$(ISO_WORKDIR)/verify-preseed-late.sh"
-	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract /preseed.cfg "$(ISO_WORKDIR)/verify-preseed.cfg" >/dev/null
-	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract /boot/grub/grub.cfg "$(ISO_WORKDIR)/verify-grub.cfg" >/dev/null
-	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract "$(AUTHORIZED_KEY_ISO_PATH)" "$(ISO_WORKDIR)/verify-authorized_key.pub" >/dev/null
-	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract "$(PARTMAN_EARLY_ISO_PATH)" "$(ISO_WORKDIR)/verify-partman-early.sh" >/dev/null
-	@xorriso -osirrox on -indev "$(AUTO_ISO)" -extract "$(PRESEED_LATE_ISO_PATH)" "$(ISO_WORKDIR)/verify-preseed-late.sh" >/dev/null
-	@rg -q "partman/early_command string" "$(ISO_WORKDIR)/verify-preseed.cfg"
-	@rg -q "/cdrom/installer-hooks/partman-early.sh" "$(ISO_WORKDIR)/verify-preseed.cfg"
-	@rg -q "preseed/late_command string" "$(ISO_WORKDIR)/verify-preseed.cfg"
-	@rg -q "/cdrom/installer-hooks/preseed-late.sh" "$(ISO_WORKDIR)/verify-preseed.cfg"
-	@rg -q "debconf-set partman-auto/disk" "$(ISO_WORKDIR)/verify-partman-early.sh"
-	@rg -q "debconf-set grub-installer/bootdev" "$(ISO_WORKDIR)/verify-partman-early.sh"
-	@rg -q "snapper --no-dbus -c root create-config /" "$(ISO_WORKDIR)/verify-preseed-late.sh"
-	@rg -q "list-configs \\| grep -Eq" "$(ISO_WORKDIR)/verify-preseed-late.sh"
-	@rg -q "^set timeout_style=hidden$$" "$(ISO_WORKDIR)/verify-grub.cfg"
-	@rg -q "^set timeout=0$$" "$(ISO_WORKDIR)/verify-grub.cfg"
-	@test "$$(rg -c "^menuentry " "$(ISO_WORKDIR)/verify-grub.cfg")" -eq 1
-	@rg -q "preseed/file=/cdrom/preseed.cfg" "$(ISO_WORKDIR)/verify-grub.cfg"
-	@test -f "$(ISO_WORKDIR)/verify-authorized_key.pub"
-	@test -s "$(ISO_WORKDIR)/verify-partman-early.sh"
-	@test -s "$(ISO_WORKDIR)/verify-preseed-late.sh"
+_verify-iso: _verify-iso-extract _verify-iso-preseed _verify-iso-grub _verify-iso-hooks _verify-iso-ssh
 	@echo "ISO verification passed: unattended boot + injected installer hook scripts present."
+
+_verify-iso-extract: $(AUTO_ISO) $(VERIFY_AUTO_ISO_SCRIPT)
+	@echo "==> verifying iso assets"
+	@AUTO_ISO="$(AUTO_ISO)" \
+	ISO_WORKDIR="$(ISO_WORKDIR)" \
+	AUTHORIZED_KEY_ISO_PATH="$(AUTHORIZED_KEY_ISO_PATH)" \
+	PARTMAN_EARLY_ISO_PATH="$(PARTMAN_EARLY_ISO_PATH)" \
+	PRESEED_LATE_ISO_PATH="$(PRESEED_LATE_ISO_PATH)" \
+	VERIFY_PRESEED_HOST_FILE="$(VERIFY_PRESEED_HOST_FILE)" \
+	VERIFY_GRUB_HOST_FILE="$(VERIFY_GRUB_HOST_FILE)" \
+	VERIFY_AUTHORIZED_KEY_HOST_FILE="$(VERIFY_AUTHORIZED_KEY_HOST_FILE)" \
+	VERIFY_PARTMAN_EARLY_HOST_FILE="$(VERIFY_PARTMAN_EARLY_HOST_FILE)" \
+	VERIFY_PRESEED_LATE_HOST_FILE="$(VERIFY_PRESEED_LATE_HOST_FILE)" \
+	/bin/sh "$(VERIFY_AUTO_ISO_SCRIPT)" extract
+
+_verify-iso-preseed: _verify-iso-extract $(VERIFY_AUTO_ISO_SCRIPT)
+	@AUTO_ISO="$(AUTO_ISO)" \
+	VERIFY_PRESEED_HOST_FILE="$(VERIFY_PRESEED_HOST_FILE)" \
+	/bin/sh "$(VERIFY_AUTO_ISO_SCRIPT)" check-preseed
+
+_verify-iso-grub: _verify-iso-extract $(VERIFY_AUTO_ISO_SCRIPT)
+	@AUTO_ISO="$(AUTO_ISO)" \
+	VERIFY_GRUB_HOST_FILE="$(VERIFY_GRUB_HOST_FILE)" \
+	/bin/sh "$(VERIFY_AUTO_ISO_SCRIPT)" check-grub
+
+_verify-iso-hooks: _verify-iso-extract $(VERIFY_AUTO_ISO_SCRIPT)
+	@AUTO_ISO="$(AUTO_ISO)" \
+	VERIFY_PARTMAN_EARLY_HOST_FILE="$(VERIFY_PARTMAN_EARLY_HOST_FILE)" \
+	VERIFY_PRESEED_LATE_HOST_FILE="$(VERIFY_PRESEED_LATE_HOST_FILE)" \
+	/bin/sh "$(VERIFY_AUTO_ISO_SCRIPT)" check-hooks
+
+_verify-iso-ssh: _verify-iso-extract $(VERIFY_AUTO_ISO_SCRIPT)
+	@AUTO_ISO="$(AUTO_ISO)" \
+	VERIFY_AUTHORIZED_KEY_HOST_FILE="$(VERIFY_AUTHORIZED_KEY_HOST_FILE)" \
+	/bin/sh "$(VERIFY_AUTO_ISO_SCRIPT)" check-ssh
 
 _efi-vars:
 	@test -f "$(EFI_VARS)" || cp "$(EFI_VARS_TEMPLATE)" "$(EFI_VARS)"
